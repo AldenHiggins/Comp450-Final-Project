@@ -1,0 +1,428 @@
+-13.14:13.14
+0
+Geometric path with 106 states
+Compound state [
+SO2State [-1.5708]
+RealVectorState [0]
+]
+Compound state [
+SO2State [-1.56099]
+RealVectorState [0.194562]
+]
+Compound state [
+SO2State [-1.53252]
+RealVectorState [0.370195]
+]
+Compound state [
+SO2State [-1.48904]
+RealVectorState [0.492282]
+]
+Compound state [
+SO2State [-1.43566]
+RealVectorState [0.566647]
+]
+Compound state [
+SO2State [-1.37754]
+RealVectorState [0.586398]
+]
+Compound state [
+SO2State [-1.32994]
+RealVectorState [0.357816]
+]
+Compound state [
+SO2State [-1.3071]
+RealVectorState [0.0953677]
+]
+Compound state [
+SO2State [-1.31117]
+RealVectorState [-0.176057]
+]
+Compound state [
+SO2State [-1.34214]
+RealVectorState [-0.438323]
+]
+Compound state [
+SO2State [-1.39744]
+RealVectorState [-0.65899]
+]
+Compound state [
+SO2State [-1.47182]
+RealVectorState [-0.81646]
+]
+Compound state [
+SO2State [-1.56645]
+RealVectorState [-1.06063]
+]
+Compound state [
+SO2State [-1.68053]
+RealVectorState [-1.20234]
+]
+Compound state [
+SO2State [-1.80296]
+RealVectorState [-1.22644]
+]
+Compound state [
+SO2State [-1.92194]
+RealVectorState [-1.1345]
+]
+Compound state [
+SO2State [-2.02639]
+RealVectorState [-0.938828]
+]
+Compound state [
+SO2State [-2.10733]
+RealVectorState [-0.668307]
+]
+Compound state [
+SO2State [-2.15818]
+RealVectorState [-0.341605]
+]
+Compound state [
+SO2State [-2.17472]
+RealVectorState [0.012956]
+]
+Compound state [
+SO2State [-2.1467]
+RealVectorState [0.543709]
+]
+Compound state [
+SO2State [-2.06148]
+RealVectorState [1.1486]
+]
+Compound state [
+SO2State [-1.92029]
+RealVectorState [1.65421]
+]
+Compound state [
+SO2State [-1.7357]
+RealVectorState [2.00827]
+]
+Compound state [
+SO2State [-1.52101]
+RealVectorState [2.25054]
+]
+Compound state [
+SO2State [-1.29289]
+RealVectorState [2.27503]
+]
+Compound state [
+SO2State [-1.07311]
+RealVectorState [2.08736]
+]
+Compound state [
+SO2State [-0.888436]
+RealVectorState [1.58101]
+]
+Compound state [
+SO2State [-0.760925]
+RealVectorState [0.953936]
+]
+Compound state [
+SO2State [-0.699814]
+RealVectorState [0.261633]
+]
+Compound state [
+SO2State [-0.719365]
+RealVectorState [-0.65057]
+]
+Compound state [
+SO2State [-0.82851]
+RealVectorState [-1.51991]
+]
+Compound state [
+SO2State [-1.01966]
+RealVectorState [-2.27822]
+]
+Compound state [
+SO2State [-1.27639]
+RealVectorState [-2.81814]
+]
+Compound state [
+SO2State [-1.57453]
+RealVectorState [-3.09646]
+]
+Compound state [
+SO2State [-1.88565]
+RealVectorState [-3.07582]
+]
+Compound state [
+SO2State [-2.1795]
+RealVectorState [-2.75819]
+]
+Compound state [
+SO2State [-2.42992]
+RealVectorState [-2.21979]
+]
+Compound state [
+SO2State [-2.6187]
+RealVectorState [-1.53801]
+]
+Compound state [
+SO2State [-2.72246]
+RealVectorState [-0.529709]
+]
+Compound state [
+SO2State [-2.72391]
+RealVectorState [0.500862]
+]
+Compound state [
+SO2State [-2.62298]
+RealVectorState [1.51044]
+]
+Compound state [
+SO2State [-2.43567]
+RealVectorState [2.21825]
+]
+Compound state [
+SO2State [-2.17703]
+RealVectorState [2.92326]
+]
+Compound state [
+SO2State [-1.85885]
+RealVectorState [3.39344]
+]
+Compound state [
+SO2State [-1.50432]
+RealVectorState [3.63973]
+]
+Compound state [
+SO2State [-1.14265]
+RealVectorState [3.53648]
+]
+Compound state [
+SO2State [-0.809883]
+RealVectorState [3.07385]
+]
+Compound state [
+SO2State [-0.535155]
+RealVectorState [2.39287]
+]
+Compound state [
+SO2State [-0.333373]
+RealVectorState [1.62902]
+]
+Compound state [
+SO2State [-0.211149]
+RealVectorState [0.810151]
+]
+Compound state [
+SO2State [-0.171929]
+RealVectorState [-0.0269382]
+]
+Compound state [
+SO2State [-0.221395]
+RealVectorState [-0.960838]
+]
+Compound state [
+SO2State [-0.363366]
+RealVectorState [-1.87198]
+]
+Compound state [
+SO2State [-0.593548]
+RealVectorState [-2.71449]
+]
+Compound state [
+SO2State [-0.893633]
+RealVectorState [-3.25412]
+]
+Compound state [
+SO2State [-1.2493]
+RealVectorState [-3.80831]
+]
+Compound state [
+SO2State [-1.6436]
+RealVectorState [-4.01382]
+]
+Compound state [
+SO2State [-2.04334]
+RealVectorState [-3.9183]
+]
+Compound state [
+SO2State [-2.41515]
+RealVectorState [-3.47]
+]
+Compound state [
+SO2State [-2.7298]
+RealVectorState [-2.79549]
+]
+Compound state [
+SO2State [-2.97221]
+RealVectorState [-2.04152]
+]
+Compound state [
+SO2State [-3.13691]
+RealVectorState [-1.25014]
+]
+Compound state [
+SO2State [3.06999]
+RealVectorState [-0.276108]
+]
+Compound state [
+SO2State [3.091]
+RealVectorState [0.696645]
+]
+Compound state [
+SO2State [-3.07557]
+RealVectorState [1.63549]
+]
+Compound state [
+SO2State [-2.87073]
+RealVectorState [2.45591]
+]
+Compound state [
+SO2State [-2.57356]
+RealVectorState [3.46788]
+]
+Compound state [
+SO2State [-2.18333]
+RealVectorState [4.29293]
+]
+Compound state [
+SO2State [-1.7253]
+RealVectorState [4.79863]
+]
+Compound state [
+SO2State [-1.24112]
+RealVectorState [4.80641]
+]
+Compound state [
+SO2State [-0.778667]
+RealVectorState [4.37895]
+]
+Compound state [
+SO2State [-0.389645]
+RealVectorState [3.3668]
+]
+Compound state [
+SO2State [-0.0920171]
+RealVectorState [2.57436]
+]
+Compound state [
+SO2State [0.124354]
+RealVectorState [1.75379]
+]
+Compound state [
+SO2State [0.251714]
+RealVectorState [0.797394]
+]
+Compound state [
+SO2State [0.284447]
+RealVectorState [-0.141292]
+]
+Compound state [
+SO2State [0.223332]
+RealVectorState [-1.08356]
+]
+Compound state [
+SO2State [0.0589384]
+RealVectorState [-2.20824]
+]
+Compound state [
+SO2State [-0.218618]
+RealVectorState [-3.33954]
+]
+Compound state [
+SO2State [-0.606441]
+RealVectorState [-4.39189]
+]
+Compound state [
+SO2State [-1.08896]
+RealVectorState [-5.19977]
+]
+Compound state [
+SO2State [-1.63152]
+RealVectorState [-5.56532]
+]
+Compound state [
+SO2State [-2.18422]
+RealVectorState [-5.40387]
+]
+Compound state [
+SO2State [-2.69687]
+RealVectorState [-4.7956]
+]
+Compound state [
+SO2State [-3.13653]
+RealVectorState [-3.98191]
+]
+Compound state [
+SO2State [2.79016]
+RealVectorState [-3.15825]
+]
+Compound state [
+SO2State [2.50862]
+RealVectorState [-2.49442]
+]
+Compound state [
+SO2State [2.28787]
+RealVectorState [-1.94507]
+]
+Compound state [
+SO2State [2.11509]
+RealVectorState [-1.53326]
+]
+Compound state [
+SO2State [1.97692]
+RealVectorState [-1.25009]
+]
+Compound state [
+SO2State [1.86131]
+RealVectorState [-1.08]
+]
+Compound state [
+SO2State [1.76952]
+RealVectorState [-0.770308]
+]
+Compound state [
+SO2State [1.70477]
+RealVectorState [-0.535153]
+]
+Compound state [
+SO2State [1.66475]
+RealVectorState [-0.271592]
+]
+Compound state [
+SO2State [1.64956]
+RealVectorState [-0.0347557]
+]
+Compound state [
+SO2State [1.65769]
+RealVectorState [0.198656]
+]
+Compound state [
+SO2State [1.67434]
+RealVectorState [0.137021]
+]
+Compound state [
+SO2State [1.68385]
+RealVectorState [0.0548669]
+]
+Compound state [
+SO2State [1.68549]
+RealVectorState [-0.0218944]
+]
+Compound state [
+SO2State [1.6797]
+RealVectorState [-0.0947675]
+]
+Compound state [
+SO2State [1.66623]
+RealVectorState [-0.17696]
+]
+Compound state [
+SO2State [1.64373]
+RealVectorState [-0.276577]
+]
+Compound state [
+SO2State [1.62137]
+RealVectorState [-0.174373]
+]
+Compound state [
+SO2State [1.60829]
+RealVectorState [-0.0893915]
+]
+Compound state [
+SO2State [1.6032]
+RealVectorState [-0.0132439]
+]
+

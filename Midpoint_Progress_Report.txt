@@ -1,0 +1,10 @@
+﻿John Alden Higgins, David Nichol, Samuel Tormey
+Comp 450 Kavraki
+11/5/14
+
+Final Project Progress Report
+
+
+	We have decided to work on project option 5.3, creating a state space for an n joint planar manipulator.  So far we have worked through the equations and physics involved in the system, written up the differentiation step completely, written some 3d visualization code for MATLAB, and discussed our approach for actually implementing the project in OMPL.
+
+	In addition we have begun developing the state space in OMPL, although we have not completed the project.
