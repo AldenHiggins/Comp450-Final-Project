@@ -10,28 +10,34 @@
 #define BOOST_ASSERT_MSG(expr, msg) assert(expr)
 #endif
 
+
 void ompl::base::JointManipulatorSampler::sampleUniform(State *state)
 {
-    state->as<JointManipulatorSpace::StateType>()->value =
-        rng_.uniformReal(-boost::math::constants::pi<double>(), boost::math::constants::pi<double>());
+    state->as<JointManipulatorSpace::StateType>()->phis = malloc(sizeof(double) * space_->as<JointManipulatorSpace>()->numberOfJoints);
+    state->as<JointManipulatorSpace::StateType>()->velocities = malloc(sizeof(double) * space_->as<JointManipulatorSpace>()->numberOfJoints);
+        // rng_.uniformReal(-boost::math::constants::pi<double>(), boost::math::constants::pi<double>());
 }
 
 void ompl::base::JointManipulatorSampler::sampleUniformNear(State *state, const State *near, const double distance)
 {
-    state->as<JointManipulatorSpace::StateType>()->value = rng_.uniformReal(near->as<JointManipulatorSpace::StateType>()->value - distance,
-                                                                       near->as<JointManipulatorSpace::StateType>()->value + distance);
+    state->as<JointManipulatorSpace::StateType>()->phis = malloc(sizeof(double) * space_->as<JointManipulatorSpace>()->numberOfJoints);
+    state->as<JointManipulatorSpace::StateType>()->velocities = malloc(sizeof(double) * space_->as<JointManipulatorSpace>()->numberOfJoints);
+    // rng_.uniformReal(near->as<JointManipulatorSpace::StateType>()->value - distance,
+    //                                                                    near->as<JointManipulatorSpace::StateType>()->value + distance);
     space_->enforceBounds(state);
 }
 
 void ompl::base::JointManipulatorSampler::sampleGaussian(State *state, const State *mean, const double stdDev)
 {
-    state->as<JointManipulatorSpace::StateType>()->value = rng_.gaussian(mean->as<JointManipulatorSpace::StateType>()->value, stdDev);
+    state->as<JointManipulatorSpace::StateType>()->phis = malloc(sizeof(double) * space_->as<JointManipulatorSpace>()->numberOfJoints);
+    state->as<JointManipulatorSpace::StateType>()->velocities = malloc(sizeof(double) * space_->as<JointManipulatorSpace>()->numberOfJoints);
+    // rng_.gaussian(mean->as<JointManipulatorSpace::StateType>()->value, stdDev);
     space_->enforceBounds(state);
 }
 
 unsigned int ompl::base::JointManipulatorSpace::getDimension() const
 {
-    return 1;
+    return numberOfJoints;
 }
 
 double ompl::base::JointManipulatorSpace::getMaximumExtent() const
@@ -46,25 +52,23 @@ double ompl::base::JointManipulatorSpace::getMeasure() const
 
 void ompl::base::JointManipulatorSpace::enforceBounds(State *state) const
 {
-    double v = fmod(state->as<StateType>()->value, 2.0 * boost::math::constants::pi<double>());
-    if (v <= -boost::math::constants::pi<double>())
-        v += 2.0 * boost::math::constants::pi<double>();
-    else
-        if (v > boost::math::constants::pi<double>())
-            v -= 2.0 * boost::math::constants::pi<double>();
-    state->as<StateType>()->value = v;
+    // double v = fmod(state->as<StateType>()->value, 2.0 * boost::math::constants::pi<double>());
+    // if (v <= -boost::math::constants::pi<double>())
+    //     v += 2.0 * boost::math::constants::pi<double>();
+    // else
+    //     if (v > boost::math::constants::pi<double>())
+    //         v -= 2.0 * boost::math::constants::pi<double>();
+    // state->as<StateType>()->value = v;
 }
 
 bool ompl::base::JointManipulatorSpace::satisfiesBounds(const State *state) const
 {
-    return (state->as<StateType>()->value <= boost::math::constants::pi<double>()) &&
-           (state->as<StateType>()->value > -boost::math::constants::pi<double>());
+    // return (state->as<StateType>()->value <= boost::math::constants::pi<double>()) &&
+    //        (state->as<StateType>()->value > -boost::math::constants::pi<double>());
+    return true;
 }
 
-void ompl::base::JointManipulatorSpace::copyState(State *destination, const State *source) const
-{
-    destination->as<StateType>()->value = source->as<StateType>()->value;
-}
+
 
 unsigned int ompl::base::JointManipulatorSpace::getSerializationLength() const
 {
@@ -193,4 +197,11 @@ void ompl::base::JointManipulatorSpace::printState(const State *state, std::ostr
 void ompl::base::JointManipulatorSpace::printSettings(std::ostream &out) const
 {
     out << "Joint Manipulator state space '" << getName() << "'" << std::endl;
+}
+
+
+void ompl::base::JointManipulatorSpace::copyState(State *destination, const State *source) const
+{
+    destination->as<StateType>()->phis = source->as<StateType>()->phis;
+    destination->as<StateType>()->velocities = source->as<StateType>()->velocities;
 }

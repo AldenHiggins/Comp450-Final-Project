@@ -32,6 +32,7 @@ namespace ompl
         public:
 
             /** \brief The definition of a state in SO(2) */
+            // TODO: add destructor
             class StateType : public State
             {
             public:
@@ -43,14 +44,17 @@ namespace ompl
                 }
 
                 /** \brief The value of the angle in the interval (-Pi, Pi] */
-                double value;
+                double phis[];
+                // Angular velocity
+                double velocities[];
             };
 
-            JointManipulatorSpace() : StateSpace()
+            JointManipulatorSpace(int numberOfJointsInput) : StateSpace()
             {
                 setName("JOINT" + getName());
                 // TEMP : not sure if this is already being used, check later
                 type_ = 42;
+                numberOfJoints = numberOfJointsInput;
             }
 
             virtual ~JointManipulatorSpace()
@@ -96,6 +100,9 @@ namespace ompl
             virtual void printSettings(std::ostream &out) const;
 
             virtual void registerProjections();
+            
+            int numberOfJoints;
+        private:
         };
     }
 }

@@ -28,194 +28,164 @@
 #define CAR_MIN_ENV_VALUE -10
 #define CAR_MAX_ENV_VALUE 10
 
+#define JOINT_LENGTH 1
+#define JOINT_MASS 1
+
 using namespace ompl;
 
-// Check the environment for a pendulum
-bool pendulumStateValid(const control::SpaceInformation *si, const base::State *state)
-{
-    return true;
-}
-
-// Definition of the ODE for the pendulum
-void pendulumODE (const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot)
-{
-    const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
-
-    // Zero out qdot
-    qdot.resize (q.size (), 0);
-    // Set qdot
-    qdot[0] = q[1];
-    qdot[1] = -9.81 * cos(q[0]) + u[0];
-}
-
-// This is a callback method invoked after numerical integration.
-void pendulumPostIntegration (const base::State* /*state*/, const control::Control* /*control*/, const double /*duration*/, base::State *result)
-{
-    // Normalize orientation between 0 and 2*pi
-    base::SO2StateSpace SO2;
-    SO2.enforceBounds (result->as<base::CompoundStateSpace::StateType>()->as<base::SO2StateSpace::StateType>(0));
-}
-
-void pendulumPlan()
-{
-    // Define the state space
-    base::StateSpacePtr SO2(new base::SO2StateSpace());
-    base::StateSpacePtr angularVelocity(new base::RealVectorStateSpace(1));
-    base::StateSpacePtr stateSpace = SO2 + angularVelocity;
-
-    // Bind angular velocity bounds
-    base::RealVectorBounds velocityBound(1);
-    velocityBound.setLow(-13.4);
-    velocityBound.setHigh(13.4);
-    angularVelocity->as<base::RealVectorStateSpace>()->setBounds(velocityBound);
-
-    // Define start and goal states
-    base::ScopedState<> start(stateSpace);
-    base::ScopedState<> goal(stateSpace);
-
-    start[0] = -1 * boost::math::constants::pi<double>()/2;
-    start[1] = 0;
-
-    goal[0] = boost::math::constants::pi<double>()/2;
-    goal[1] = 0;
-
-    // Enables KPIECE planner
-    // stateSpace->registerDefaultProjection(base::ProjectionEvaluatorPtr(new PendulumProjection(stateSpace)));
-    // Define control space
-    control::ControlSpacePtr cmanifold(new control::RealVectorControlSpace(stateSpace, 1));
-
-    // Set bounds of control space
-    base::RealVectorBounds cbounds(1);
-    cbounds.setLow(-2);
-    cbounds.setHigh(2);
-    cmanifold->as<control::RealVectorControlSpace>()->setBounds(cbounds);
-
-
-    // Set up control space
-    control::SimpleSetup setup(cmanifold);
-
-    // Set state validity checking for this space
-    setup.setStateValidityChecker(boost::bind(&pendulumStateValid, setup.getSpaceInformation().get(), _1));
-    // Add ODE solver for the space
-    control::ODESolverPtr odeSolver(new control::ODEBasicSolver<> (setup.getSpaceInformation(), &pendulumODE));
-    // Add post integration function
-    setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &pendulumPostIntegration));
-    // Change planner variables
-    setup.getSpaceInformation()->setPropagationStepSize(.1);
-    setup.getSpaceInformation()->setMinMaxControlDuration(1, 3); // 2 3 default
-
-    setup.setStartAndGoalStates(start, goal, 0.05);
-    setup.setup();
-    // Give the problem 30 seconds to solve
-    if(setup.solve(30))
-    {
-        std::cout << "Found solution:" << std::endl;
-
-        // print the path to screen
-        setup.getSolutionPath().asGeometric().printAsMatrix(std::cout);
-
-        std::ofstream fout("pathResults");
-        // Start by writing out environment
-        // First write the axis dimensions
-        fout << -13.14 << ":" << 13.14 << std::endl;
-        // Now write the objects
-        fout << 0 << std::endl;
-        setup.getSolutionPath().asGeometric().print(fout);
-    }
-    else
-    {
-       std::cout << "No solution found" << std::endl; 
-    }
-}
+int numberOfJoints;
 
 // State checker for the car robot
-bool carStateValid(const control::SpaceInformation *si, const base::State *state)
+bool jointManipulatorStateValid(const control::SpaceInformation *si, const base::State *state)
 {
-
     return true;
 }
 
 // Definition of the ODE for the car
-void carODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot)
+void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot)
 {
     const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
-    const double theta = q[2];
+    const double q0 = q[0];
+    const double q1 = q[1];
+    const double q2 = q[2];
+    const double q3 = q[3];
+    const double q4 = q[4];
+    const double q5 = q[5];
 
-    // Zero out qdot
-    qdot.resize (q.size (), 0);
+    // TODO: might be broken
+    std::vector<double> jointEndsX;
+    std::vector<double> jointEndsY;
+    jointEndsX.push_back(JOINT_LENGTH * cos(q[0]));
+    jointEndsY.push_back(JOINT_LENGTH * sin(q[0]));
 
-    qdot[0] = q[3] * cos(theta);
-    qdot[1] = q[3] * sin(theta);
-    qdot[2] = u[0];
-    qdot[3] = u[1];
+    double qSum = q[0];
+
+    for (int i = 1; i < numberOfJoints; i++){
+        qSum += q[i * 2];
+        jointEndsX.push_back(jointEndsX[i-1] + JOINT_LENGTH * cos(qSum));
+        jointEndsY.push_back(jointEndsY[i-1] + JOINT_LENGTH * sin(qSum));
+    }
+
+    // Initialize inertia matrix
+    std::vector<std::vector<double> > inertiaMatrix;
+    for (int i = 0; i < numberOfJoints; i++){
+        std::vector<double> row;
+        for (int j = 0; j < numberOfJoints; j++){
+            row.push_back(0);
+        }
+        inertiaMatrix.push_back(row);
+    }
+    // Add the inertia mat at each step
+    qSum = q[0];
+    for (int i = 0; i < numberOfJoints; i++){
+        qSum += q[i * 2];
+        std::vector<double> jacobianLX;
+        std::vector<double> jacobianLY;
+        for(int j = 0; j < numberOfJoints; j++){
+            if (j <= i ){
+                jacobianLX.push_back(-1 * jointEndsY[j] + jointEndsY[i] - JOINT_LENGTH/2 * sin(qSum));
+                jacobianLY.push_back(jointEndsX[j] + -1 * jointEndsX[i] + JOINT_LENGTH/2 * cos(qSum));
+            }
+            else {
+                jacobianLX.push_back(0);
+                jacobianLY.push_back(0);
+            }
+        }
+
+        for (int r = 0; r < numberOfJoints; r++){
+            for (int c = 0; c < numberOfJoints; c++){
+                inertiaMatrix[r][c] = JOINT_MASS * JOINT_MASS * (jacobianLX[r] * jacobianLX[c] + jacobianLY[r] * jacobianLY[c]);    
+                if (r <= i && c <= i){
+                    // Add in moment of inertia
+                    inertiaMatrix[r][c] += ((JOINT_MASS * JOINT_LENGTH * JOINT_LENGTH)/12.);
+                }            
+            }
+        }
+    }
+
+
+
+    // // Zero out qdot
+    // qdot.resize (q.size (), 0);
+
+    // qdot[0] = q[3] * cos(theta);
+    // qdot[1] = q[3] * sin(theta);
+    // qdot[2] = u[0];
+    // qdot[3] = u[1];
 }
 
 // This is a callback method invoked after numerical integration for the car robot
-void carPostIntegration(const base::State* /*state*/, const control::Control* /*control*/, const double /*duration*/, base::State *result)
+void jointManipulatorPostIntegration(const base::State* /*state*/, const control::Control* /*control*/, const double /*duration*/, base::State *result)
 {
     // Normalize orientation between 0 and 2*pi
     base::SO2StateSpace SO2;
-    SO2.enforceBounds (result->as<base::CompoundStateSpace::StateType>()->as<base::SE2StateSpace::StateType>(0)
-        ->as<base::SO2StateSpace::StateType>(1));
+    for (int i = 0; i < numberOfJoints; i++){
+        SO2.enforceBounds (result->as<base::CompoundStateSpace::StateType>()->as<base::SO2StateSpace::StateType>(i * 2));
+    }
 }
 
 void carPlan()
 {
     // Define the state space
-    base::StateSpacePtr SE2(new base::SE2StateSpace());
-    base::StateSpacePtr velocity(new base::RealVectorStateSpace(1));
-    base::StateSpacePtr stateSpace = SE2 + velocity;
+    // base::StateSpacePtr SE2(new base::SE2StateSpace());
+    // base::StateSpacePtr velocity(new base::RealVectorStateSpace(1));
+    base::StateSpacePtr stateSpace;// = SE2 + velocity;
+    for (int i = 0; i < numberOfJoints; i++){
+        base::StateSpacePtr SO2(new base::SO2StateSpace());
+        // // Bind x/y bounds of the space
+        // base::RealVectorBounds bounds(2);
+        // bounds.setLow(-10);
+        // bounds.setHigh(10);
+        // SO2->as<base::SO2StateSpace>()->setBounds(bounds);
+        base::StateSpacePtr velocity(new base::RealVectorStateSpace(1));
+        // Bind velocity bounds
+        base::RealVectorBounds velocityBound(1);
+        velocityBound.setLow(-4);
+        velocityBound.setHigh(4);
+        velocity->as<base::RealVectorStateSpace>()->setBounds(velocityBound);
+        stateSpace = stateSpace + SO2 + velocity;
+    }
 
-    // Bind x/y bounds of the space
-    base::RealVectorBounds bounds(2);
-    bounds.setLow(-10);
-    bounds.setHigh(10);
-    SE2->as<base::SE2StateSpace>()->setBounds(bounds);
+    
 
-    // Bind velocity bounds
-    base::RealVectorBounds velocityBound(1);
-    velocityBound.setLow(-4);
-    velocityBound.setHigh(4);
-    velocity->as<base::RealVectorStateSpace>()->setBounds(velocityBound);
+    
 
     // Define start and goal states
     base::ScopedState<> start(stateSpace);
     base::ScopedState<> goal(stateSpace);
-
-    start[0] = -5;
-    start[1] = -5;
-    start[2] = 0;
-    start[3] = 0;
-
-    goal[0] = 5;
-    goal[1] = 5;
-    goal[2] = 0;
-    goal[3] = 0;
+    for (int i = 0; i < numberOfJoints * 2; i++){
+        start[i] = 0;
+        if (i % 2 == 0){
+            goal[i] = i;
+        }
+        else{
+            goal[i] = 0;
+        }
+    }
 
     // Enables KPIECE planner
     // stateSpace->registerDefaultProjection(base::ProjectionEvaluatorPtr(new CarProjection(stateSpace)));
     // Define control space
-    control::ControlSpacePtr cmanifold(new control::RealVectorControlSpace(stateSpace, 2));
+    control::ControlSpacePtr cmanifold(new control::RealVectorControlSpace(stateSpace, numberOfJoints));
 
     // Set bounds of control space
-    base::RealVectorBounds cbounds(2);
-    // Bound for angular velocity
-    cbounds.setLow(0,-1);
-    cbounds.setHigh(0,1);
-    // Bound for velocity
-    cbounds.setLow(1,-20);
-    cbounds.setHigh(1,20);
+    base::RealVectorBounds cbounds(numberOfJoints);
+    for(int i = 0; i < numberOfJoints; i++){
+        cbounds.setLow(i,-4);
+        cbounds.setHigh(i,4);
+    }
     cmanifold->as<control::RealVectorControlSpace>()->setBounds(cbounds);
 
     // Set up control space
     control::SimpleSetup setup(cmanifold);
 
     // Set state validity checking for this space
-    setup.setStateValidityChecker(boost::bind(&carStateValid, setup.getSpaceInformation().get(), _1));
+    setup.setStateValidityChecker(boost::bind(&jointManipulatorStateValid, setup.getSpaceInformation().get(), _1));
     // Add ODE solver for the space
-    control::ODESolverPtr odeSolver(new control::ODEBasicSolver<> (setup.getSpaceInformation(), &carODE));
+    control::ODESolverPtr odeSolver(new control::ODEBasicSolver<> (setup.getSpaceInformation(), &jointManipulatorODE));
     // Add post integration function
-    setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &carPostIntegration));
+    // setup.setPlanner(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
+    setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     // Change planner variables
     setup.getSpaceInformation()->setPropagationStepSize(.1);
     setup.getSpaceInformation()->setMinMaxControlDuration(1, 3); // 2 3 default
@@ -253,26 +223,21 @@ void carPlan()
 
 int main()
 {
+    numberOfJoints = 3;
     // Initialize car environment
     // carEnvironment = new Environment();
 
     // Choose type of scenario to plan for
-    int env;
-    do
-    {
-        std::cout << "Plan for: "<< std::endl;
-        std::cout << " (1) Pendulum" << std::endl;
-        std::cout << " (2) Car Robot" << std::endl;
+    // int env;
+    // do
+    // {
+    //     std::cout << "Plan for: "<< std::endl;
+    //     std::cout << " (1) Pendulum" << std::endl;
+    //     std::cout << " (2) Car Robot" << std::endl;
 
-        std::cin >> env;
-    } while (env < 1 || env > 2);
+    //     std::cin >> env;
+    // } while (env < 1 || env > 2);
 
-    if (env == 1)
-    {
-        pendulumPlan();
-    }
-    else
-    {
-        carPlan();
-    }
+    carPlan();
+
 }
