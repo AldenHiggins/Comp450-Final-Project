@@ -31,9 +31,148 @@
 #define JOINT_LENGTH 1
 #define JOINT_MASS 1
 
+#define DISTANCE_FROM_CENTER 1
+
 using namespace ompl;
 
 int numberOfJoints;
+
+
+
+  /*
+     Recursive definition of determinate using expansion by minors.
+  */
+  double Determinant(double **a,int n)
+  {
+     int i,j,j1,j2;
+     double det = 0;
+     double **m = NULL;
+
+     if (n < 1) { /* Error */
+
+     } else if (n == 1) { /* Shouldn't get used */
+        det = a[0][0];
+     } else if (n == 2) {
+        det = a[0][0] * a[1][1] - a[1][0] * a[0][1];
+     } else {
+        det = 0;
+        for (j1=0;j1<n;j1++) {
+           m = (double **) malloc((n-1)*sizeof(double *));
+           for (i=0;i<n-1;i++)
+              m[i] = (double *) malloc((n-1)*sizeof(double));
+           for (i=1;i<n;i++) {
+              j2 = 0;
+              for (j=0;j<n;j++) {
+                 if (j == j1)
+                    continue;
+                 m[i-1][j2] = a[i][j];
+                 j2++;
+              }
+           }
+           det += pow(-1.0,j1+2.0) * a[0][j1] * Determinant(m,n-1);
+           for (i=0;i<n-1;i++)
+              free(m[i]);
+           free(m);
+        }
+     }
+     return(det);
+  }
+
+  /*
+     Find the cofactor matrix of a square matrix
+  */
+  void CoFactor(double **a,int n,double **b)
+  {
+     int i,j,ii,jj,i1,j1;
+     double det;
+     double **c;
+
+     c = (double **) malloc((n-1)*sizeof(double *));
+     for (i=0;i<n-1;i++)
+       c[i] = (double *) malloc((n-1)*sizeof(double));
+
+     for (j=0;j<n;j++) {
+        for (i=0;i<n;i++) {
+
+           /* Form the adjoint a_ij */
+           i1 = 0;
+           for (ii=0;ii<n;ii++) {
+              if (ii == i)
+                 continue;
+              j1 = 0;
+              for (jj=0;jj<n;jj++) {
+                 if (jj == j)
+                    continue;
+                 c[i1][j1] = a[ii][jj];
+                 j1++;
+              }
+              i1++;
+           }
+
+           /* Calculate the determinate */
+           det = Determinant(c,n-1);
+
+           /* Fill in the elements of the cofactor */
+           b[i][j] = pow(-1.0,i+j+2.0) * det;
+        }
+     }
+     for (i=0;i<n-1;i++)
+        free(c[i]);
+     free(c);
+  }
+
+  /*
+     Transpose of a square matrix, do it in place
+  */
+  void Transpose(double **a,int n)
+  {
+     int i,j;
+     double tmp;
+
+     for (i=1;i<n;i++) {
+        for (j=0;j<i;j++) {
+           tmp = a[i][j];
+           a[i][j] = a[j][i];
+           a[j][i] = tmp;
+        }
+     }
+
+  }
+
+  void Inverse(double **a, double **b, int n)
+  {
+
+  double det = Determinant(a,n);
+  CoFactor(a,n,b);
+  for(int i = 0; i < n; i++){
+    for(int j = 0; j < n; j++){
+      b[i][j] = b[i][j]/det;
+    }
+  }
+
+  Transpose(b,n);
+ 
+  }
+
+double** setupHMM(std::vector<std::vector<double> > &vals, int N, int M)
+{
+   double** temp;
+   temp = new double*[N];
+   for(unsigned i=0; (i < N); i++)
+   { 
+      temp[i] = new double[M];
+      for(unsigned j=0; (j < M); j++)
+      {
+          temp[i][j] = vals[i][j];
+      } 
+   }
+
+   return temp;
+}
+
+
+
+
 
 // State checker for the car robot
 bool jointManipulatorStateValid(const control::SpaceInformation *si, const base::State *state)
@@ -55,13 +194,17 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     // TODO: might be broken
     std::vector<double> jointEndsX;
     std::vector<double> jointEndsY;
+    std::vector<double> thetaArr;
+
     jointEndsX.push_back(JOINT_LENGTH * cos(q[0]));
     jointEndsY.push_back(JOINT_LENGTH * sin(q[0]));
 
     double qSum = q[0];
-
+    thetaArr.push_back(qSum);
     for (int i = 1; i < numberOfJoints; i++){
+    
         qSum += q[i * 2];
+        thetaArr.push_back(qSum);
         jointEndsX.push_back(jointEndsX[i-1] + JOINT_LENGTH * cos(qSum));
         jointEndsY.push_back(jointEndsY[i-1] + JOINT_LENGTH * sin(qSum));
     }
@@ -77,6 +220,9 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     }
     // Add the inertia mat at each step
     qSum = q[0];
+    std::vector<std::vector<double> > jacobianLXArr;
+    std::vector<std::vector<double> > jacobianLYArr;
+    
     for (int i = 0; i < numberOfJoints; i++){
         qSum += q[i * 2];
         std::vector<double> jacobianLX;
@@ -91,6 +237,10 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
                 jacobianLY.push_back(0);
             }
         }
+        jacobianLXArr.push_back(jacobianLX);
+        jacobianLYArr.push_back(jacobianLY);
+
+
 
         for (int r = 0; r < numberOfJoints; r++){
             for (int c = 0; c < numberOfJoints; c++){
@@ -104,6 +254,74 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     }
 
 
+    double** Hinv = (double**)malloc(numberOfJoints * sizeof (double*));
+    for (int z = 0; z < numberOfJoints; z++) {
+      Hinv[z] = (double*) malloc(numberOfJoints * sizeof(double));
+    }
+    Inverse(setupHMM(inertiaMatrix,numberOfJoints,numberOfJoints), Hinv, numberOfJoints);
+    std::vector<std::vector<std::vector< double > > > vectorOfMatricies;
+
+    for (int i = 0; i < numberOfJoints; i++) {
+      double sum = 0;
+      std::vector<std::vector<double> > resultMatrix;
+      for (int aa = 0; aa < numberOfJoints; aa++){
+          std::vector<double> row;
+          for (int aa = 0; aa < numberOfJoints; aa++){
+              row.push_back(0);
+          }
+          resultMatrix.push_back(row);
+      }
+      for (int j = 0; j < numberOfJoints; j++) {
+        std::vector<double> partialJX;
+        std::vector<double> partialJY;
+        double thetaSum = q[0];
+        for (int k = 0; k < numberOfJoints; k++) {
+            int r = std::max(j, k);
+            if (j <=i && k <= i) {
+              partialJX.push_back(-1 * jointEndsX[r] + jointEndsX[i] - DISTANCE_FROM_CENTER * cos(thetaArr[i]));
+              partialJY.push_back(-1 * jointEndsY[r] + jointEndsY[i] - DISTANCE_FROM_CENTER * sin(thetaArr[i]));
+            }
+            else {
+              partialJX.push_back(0);
+              partialJY.push_back(0);
+            }
+        }
+
+        //#dontTellRixner
+        std::vector<std::vector<double> > multipliedMatrix;
+        for (int i = 0; i < numberOfJoints; i++){
+          std::vector<double> row;
+          for (int j = 0; j < numberOfJoints; j++){
+              row.push_back(0);
+          }
+          multipliedMatrix.push_back(row);
+        }
+        for (int r = 0; r < numberOfJoints; r++){
+            for (int c = 0; c < numberOfJoints; c++){
+                multipliedMatrix[r][c] = JOINT_MASS * (partialJX[r] * partialJX[c] + partialJY[r] * partialJY[c]);
+            }
+        }
+        double **matrixTranspose = setupHMM(multipliedMatrix, numberOfJoints, numberOfJoints);
+        Transpose(matrixTranspose, numberOfJoints);
+        for (int x = 0; x < numberOfJoints; x++){
+          for (int y = 0; y < numberOfJoints; y++){
+            multipliedMatrix[x][y] += matrixTranspose[x][y];
+            resultMatrix[x][y] += multipliedMatrix[x][y];
+         }
+        }
+
+      }
+      vectorOfMatricies.push_back(resultMatrix);
+    }
+}
+
+
+
+
+
+
+
+
 
     // // Zero out qdot
     // qdot.resize (q.size (), 0);
@@ -112,7 +330,7 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     // qdot[1] = q[3] * sin(theta);
     // qdot[2] = u[0];
     // qdot[3] = u[1];
-}
+
 
 // This is a callback method invoked after numerical integration for the car robot
 void jointManipulatorPostIntegration(const base::State* /*state*/, const control::Control* /*control*/, const double /*duration*/, base::State *result)
@@ -147,8 +365,38 @@ void carPlan()
     }
 
     
-
+    std::vector<std::vector<double> > a;
+    std::vector<std::vector<double> > b;
     
+    int n = 3;
+
+
+    std::vector<double> row1;
+    std::vector<double> row2;
+    std::vector<double> row3;
+
+    row1.push_back(1);
+    row1.push_back(2);
+    row1.push_back(0);
+    row2.push_back(-1);
+    row2.push_back(1);
+    row2.push_back(1);
+    row3.push_back(1);
+    row3.push_back(2);
+    row3.push_back(3);
+
+    a.push_back(row1);
+    a.push_back(row2);
+    a.push_back(row3);
+
+
+    double ** c = setupHMM(a,n,n);
+    double ** d = setupHMM(a,n,n);
+
+
+    Inverse(c,d,n);
+
+    std::cout << d[0][0] << d[0][1];
 
     // Define start and goal states
     base::ScopedState<> start(stateSpace);
