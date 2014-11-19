@@ -38,109 +38,110 @@ using namespace ompl;
 int numberOfJoints;
 
 
+/*
+   Recursive definition of determinate using expansion by minors.
+*/
+double Determinant(double **a,int n)
+{
+   int i,j,j1,j2;
+   double det = 0;
+   double **m = NULL;
 
-  /*
-     Recursive definition of determinate using expansion by minors.
-  */
-  double Determinant(double **a,int n)
-  {
-     int i,j,j1,j2;
-     double det = 0;
-     double **m = NULL;
+   if (n < 1) { /* Error */
 
-     if (n < 1) { /* Error */
+   } else if (n == 1) { /* Shouldn't get used */
+      det = a[0][0];
+   } else if (n == 2) {
+      det = a[0][0] * a[1][1] - a[1][0] * a[0][1];
+   } else {
+      det = 0;
+      for (j1=0;j1<n;j1++) {
+         m = (double **) malloc((n-1)*sizeof(double *));
+         for (i=0;i<n-1;i++)
+            m[i] = (double *) malloc((n-1)*sizeof(double));
+         for (i=1;i<n;i++) {
+            j2 = 0;
+            for (j=0;j<n;j++) {
+               if (j == j1)
+                  continue;
+               m[i-1][j2] = a[i][j];
+               j2++;
+            }
+         }
+         det += pow(-1.0,j1+2.0) * a[0][j1] * Determinant(m,n-1);
+         for (i=0;i<n-1;i++)
+            free(m[i]);
+         free(m);
+      }
+   }
+   return(det);
+}
 
-     } else if (n == 1) { /* Shouldn't get used */
-        det = a[0][0];
-     } else if (n == 2) {
-        det = a[0][0] * a[1][1] - a[1][0] * a[0][1];
-     } else {
-        det = 0;
-        for (j1=0;j1<n;j1++) {
-           m = (double **) malloc((n-1)*sizeof(double *));
-           for (i=0;i<n-1;i++)
-              m[i] = (double *) malloc((n-1)*sizeof(double));
-           for (i=1;i<n;i++) {
-              j2 = 0;
-              for (j=0;j<n;j++) {
-                 if (j == j1)
-                    continue;
-                 m[i-1][j2] = a[i][j];
-                 j2++;
-              }
-           }
-           det += pow(-1.0,j1+2.0) * a[0][j1] * Determinant(m,n-1);
-           for (i=0;i<n-1;i++)
-              free(m[i]);
-           free(m);
-        }
-     }
-     return(det);
+/*
+   Find the cofactor matrix of a square matrix
+*/
+void CoFactor(double **a,int n,double **b)
+{
+   int i,j,ii,jj,i1,j1;
+   double det;
+   double **c;
+
+   c = (double **) malloc((n-1)*sizeof(double *));
+   for (i=0;i<n-1;i++)
+     c[i] = (double *) malloc((n-1)*sizeof(double));
+
+   for (j=0;j<n;j++) {
+      for (i=0;i<n;i++) {
+
+         /* Form the adjoint a_ij */
+         i1 = 0;
+         for (ii=0;ii<n;ii++) {
+            if (ii == i)
+               continue;
+            j1 = 0;
+            for (jj=0;jj<n;jj++) {
+               if (jj == j)
+                  continue;
+               c[i1][j1] = a[ii][jj];
+               j1++;
+            }
+            i1++;
+         }
+
+         /* Calculate the determinate */
+         det = Determinant(c,n-1);
+
+         /* Fill in the elements of the cofactor */
+         b[i][j] = pow(-1.0,i+j+2.0) * det;
+      }
+   }
+   for (i=0;i<n-1;i++)
+      free(c[i]);
+   free(c);
+}
+
+/*
+   Transpose of a square matrix, do it in place
+*/
+void Transpose(double **a,int n)
+{
+  int i,j;
+  double tmp;
+
+  for (i=1;i<n;i++) {
+    for (j=0;j<i;j++) {
+       tmp = a[i][j];
+       a[i][j] = a[j][i];
+       a[j][i] = tmp;
+    }
   }
 
-  /*
-     Find the cofactor matrix of a square matrix
-  */
-  void CoFactor(double **a,int n,double **b)
-  {
-     int i,j,ii,jj,i1,j1;
-     double det;
-     double **c;
-
-     c = (double **) malloc((n-1)*sizeof(double *));
-     for (i=0;i<n-1;i++)
-       c[i] = (double *) malloc((n-1)*sizeof(double));
-
-     for (j=0;j<n;j++) {
-        for (i=0;i<n;i++) {
-
-           /* Form the adjoint a_ij */
-           i1 = 0;
-           for (ii=0;ii<n;ii++) {
-              if (ii == i)
-                 continue;
-              j1 = 0;
-              for (jj=0;jj<n;jj++) {
-                 if (jj == j)
-                    continue;
-                 c[i1][j1] = a[ii][jj];
-                 j1++;
-              }
-              i1++;
-           }
-
-           /* Calculate the determinate */
-           det = Determinant(c,n-1);
-
-           /* Fill in the elements of the cofactor */
-           b[i][j] = pow(-1.0,i+j+2.0) * det;
-        }
-     }
-     for (i=0;i<n-1;i++)
-        free(c[i]);
-     free(c);
-  }
-
-  /*
-     Transpose of a square matrix, do it in place
-  */
-  void Transpose(double **a,int n)
-  {
-     int i,j;
-     double tmp;
-
-     for (i=1;i<n;i++) {
-        for (j=0;j<i;j++) {
-           tmp = a[i][j];
-           a[i][j] = a[j][i];
-           a[j][i] = tmp;
-        }
-     }
-
-  }
-
-  void Inverse(double **a, double **b, int n)
-  {
+}
+/*
+  Invert the inputted matrix into B
+*/
+void Inverse(double **a, double **b, int n)
+{
 
   double det = Determinant(a,n);
   CoFactor(a,n,b);
@@ -151,9 +152,9 @@ int numberOfJoints;
   }
 
   Transpose(b,n);
- 
-  }
 
+}
+// Convert a vector of vectors into a double **
 double** setupHMM(std::vector<std::vector<double> > &vals, int N, int M)
 {
    double** temp;
@@ -170,19 +171,23 @@ double** setupHMM(std::vector<std::vector<double> > &vals, int N, int M)
    return temp;
 }
 
-
-
-
+void initializeNByNVector(std::vector<std::vector<double> > *vecToInit, int n){
+  for (int i = 0; i < n; i++){
+        std::vector<double> row;
+        for (int j = 0; j < n; j++){
+            row.push_back(0);
+        }
+        vecToInit->push_back(row);
+    }
+}
 
 // State checker for the car robot
-bool jointManipulatorStateValid(const control::SpaceInformation *si, const base::State *state)
-{
+bool jointManipulatorStateValid(const control::SpaceInformation *si, const base::State *state){
     return true;
 }
 
 // Definition of the ODE for the car
-void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot)
-{
+void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
     const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
     const double q0 = q[0];
     const double q1 = q[1];
@@ -191,44 +196,40 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     const double q4 = q[4];
     const double q5 = q[5];
 
-    // TODO: might be broken
+    /** Convert the theta values for the joints into x,y pairs for the ends **/
     std::vector<double> jointEndsX;
     std::vector<double> jointEndsY;
+    // Theta accumulator
     std::vector<double> thetaArr;
-
+    // Initialize the first element
     jointEndsX.push_back(JOINT_LENGTH * cos(q[0]));
     jointEndsY.push_back(JOINT_LENGTH * sin(q[0]));
 
     double qSum = q[0];
     thetaArr.push_back(qSum);
-    for (int i = 1; i < numberOfJoints; i++){
-    
+    for (int i = 1; i < numberOfJoints; i++) {
         qSum += q[i * 2];
         thetaArr.push_back(qSum);
         jointEndsX.push_back(jointEndsX[i-1] + JOINT_LENGTH * cos(qSum));
         jointEndsY.push_back(jointEndsY[i-1] + JOINT_LENGTH * sin(qSum));
     }
 
-    // Initialize inertia matrix
+    
+    /** Build the inertia matrix **/
     std::vector<std::vector<double> > inertiaMatrix;
-    for (int i = 0; i < numberOfJoints; i++){
-        std::vector<double> row;
-        for (int j = 0; j < numberOfJoints; j++){
-            row.push_back(0);
-        }
-        inertiaMatrix.push_back(row);
-    }
-    // Add the inertia mat at each step
+    initializeNByNVector(&inertiaMatrix, numberOfJoints);
+
     qSum = q[0];
     std::vector<std::vector<double> > jacobianLXArr;
     std::vector<std::vector<double> > jacobianLYArr;
-    
-    for (int i = 0; i < numberOfJoints; i++){
+    // Sum up all the Jacobians for each i into the inertia matrix
+    for (int i = 0; i < numberOfJoints; i++) {
         qSum += q[i * 2];
         std::vector<double> jacobianLX;
         std::vector<double> jacobianLY;
-        for(int j = 0; j < numberOfJoints; j++){
-            if (j <= i ){
+        // Generate the Jacobian
+        for(int j = 0; j < numberOfJoints; j++) {
+            if (j <= i ) {
                 jacobianLX.push_back(-1 * jointEndsY[j] + jointEndsY[i] - JOINT_LENGTH/2 * sin(qSum));
                 jacobianLY.push_back(jointEndsX[j] + -1 * jointEndsX[i] + JOINT_LENGTH/2 * cos(qSum));
             }
@@ -240,38 +241,37 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         jacobianLXArr.push_back(jacobianLX);
         jacobianLYArr.push_back(jacobianLY);
 
-
-
-        for (int r = 0; r < numberOfJoints; r++){
-            for (int c = 0; c < numberOfJoints; c++){
+        // Multiply the Jacobian by its transpose and add in the moment of inertia if r/c < i then
+        // throw those values into the accumulating inertiaMatrix
+        for (int r = 0; r < numberOfJoints; r++) {
+            for (int c = 0; c < numberOfJoints; c++) {
                 inertiaMatrix[r][c] = JOINT_MASS * JOINT_MASS * (jacobianLX[r] * jacobianLX[c] + jacobianLY[r] * jacobianLY[c]);    
-                if (r <= i && c <= i){
+                if (r <= i && c <= i) {
                     // Add in moment of inertia
                     inertiaMatrix[r][c] += ((JOINT_MASS * JOINT_LENGTH * JOINT_LENGTH)/12.);
                 }            
             }
         }
     }
-
-
+    // Invert the inertia matrix
     double** Hinv = (double**)malloc(numberOfJoints * sizeof (double*));
     for (int z = 0; z < numberOfJoints; z++) {
       Hinv[z] = (double*) malloc(numberOfJoints * sizeof(double));
     }
     Inverse(setupHMM(inertiaMatrix,numberOfJoints,numberOfJoints), Hinv, numberOfJoints);
+
+
+    /** Generate the partial derivatives of the Inertia Matrix for the Coriolis vector calculation  **/
+    // Will contain the partial derivatives
     std::vector<std::vector<std::vector< double > > > vectorOfMatricies;
 
     for (int i = 0; i < numberOfJoints; i++) {
-      double sum = 0;
+      // The matrix for this partial derivative
       std::vector<std::vector<double> > resultMatrix;
-      for (int aa = 0; aa < numberOfJoints; aa++){
-          std::vector<double> row;
-          for (int aa = 0; aa < numberOfJoints; aa++){
-              row.push_back(0);
-          }
-          resultMatrix.push_back(row);
-      }
+      initializeNByNVector(&resultMatrix, numberOfJoints);
+
       for (int j = 0; j < numberOfJoints; j++) {
+        // Generate the partial jacobian derivative for this joint
         std::vector<double> partialJX;
         std::vector<double> partialJY;
         double thetaSum = q[0];
@@ -286,55 +286,33 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
               partialJY.push_back(0);
             }
         }
-
-        //#dontTellRixner
+        // Multiply the partial derivative by the jacobian transpose
+        // TODO: I thought we multiplied by the transpose and not by the derivative transpose....
         std::vector<std::vector<double> > multipliedMatrix;
-        for (int i = 0; i < numberOfJoints; i++){
-          std::vector<double> row;
-          for (int j = 0; j < numberOfJoints; j++){
-              row.push_back(0);
-          }
-          multipliedMatrix.push_back(row);
-        }
-        for (int r = 0; r < numberOfJoints; r++){
-            for (int c = 0; c < numberOfJoints; c++){
+        initializeNByNVector(&multipliedMatrix, numberOfJoints);
+        for (int r = 0; r < numberOfJoints; r++) {
+            for (int c = 0; c < numberOfJoints; c++) {
                 multipliedMatrix[r][c] = JOINT_MASS * (partialJX[r] * partialJX[c] + partialJY[r] * partialJY[c]);
             }
         }
+        // Generate the transpose of the result and add it in, then increment the result matrix
         double **matrixTranspose = setupHMM(multipliedMatrix, numberOfJoints, numberOfJoints);
         Transpose(matrixTranspose, numberOfJoints);
-        for (int x = 0; x < numberOfJoints; x++){
-          for (int y = 0; y < numberOfJoints; y++){
+        for (int x = 0; x < numberOfJoints; x++) {
+          for (int y = 0; y < numberOfJoints; y++) {
             multipliedMatrix[x][y] += matrixTranspose[x][y];
             resultMatrix[x][y] += multipliedMatrix[x][y];
-         }
+          }
         }
-
       }
+
       vectorOfMatricies.push_back(resultMatrix);
     }
 }
 
 
-
-
-
-
-
-
-
-    // // Zero out qdot
-    // qdot.resize (q.size (), 0);
-
-    // qdot[0] = q[3] * cos(theta);
-    // qdot[1] = q[3] * sin(theta);
-    // qdot[2] = u[0];
-    // qdot[3] = u[1];
-
-
 // This is a callback method invoked after numerical integration for the car robot
-void jointManipulatorPostIntegration(const base::State* /*state*/, const control::Control* /*control*/, const double /*duration*/, base::State *result)
-{
+void jointManipulatorPostIntegration(const base::State* /*state*/, const control::Control* /*control*/, const double /*duration*/, base::State *result){
     // Normalize orientation between 0 and 2*pi
     base::SO2StateSpace SO2;
     for (int i = 0; i < numberOfJoints; i++){
@@ -342,8 +320,7 @@ void jointManipulatorPostIntegration(const base::State* /*state*/, const control
     }
 }
 
-void carPlan()
-{
+void carPlan(){
     // Define the state space
     // base::StateSpacePtr SE2(new base::SE2StateSpace());
     // base::StateSpacePtr velocity(new base::RealVectorStateSpace(1));
@@ -469,8 +446,7 @@ void carPlan()
     }
 }
 
-int main()
-{
+int main(){
     numberOfJoints = 3;
     // Initialize car environment
     // carEnvironment = new Environment();
@@ -487,5 +463,4 @@ int main()
     // } while (env < 1 || env > 2);
 
     carPlan();
-
 }
