@@ -308,6 +308,19 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
 
       vectorOfMatricies.push_back(resultMatrix);
     }
+    std::vector<double> littleH;
+    for (int i = 0; i < numberOfJoints; i++) {
+      double littleHI = 0;
+      for (int j = 0; j < numberOfJoints; j++) {
+        for (int k = 0; k < numberOfJoints; k++) {
+          double hijk = vectorOfMatricies[k][i][j] - 0.5  * vectorOfMatricies[i][j][k];
+          double qDotj = q[j * 2 + 1];
+          double qDoti = q[i * 2 + 1];
+          littleHI += hijk * qDotj * qDoti;
+        }
+      }
+      littleH.push_back(littleHI);
+    }
 }
 
 
