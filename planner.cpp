@@ -32,6 +32,7 @@
 #define JOINT_MASS 1
 
 #define DISTANCE_FROM_CENTER 1
+#define GRAVITY 9.81
 
 using namespace ompl;
 
@@ -320,6 +321,41 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         }
       }
       littleH.push_back(littleHI);
+    }
+
+    std::vector<double> gis;
+    gis.resize(numberOfJoints, 0);
+    gis[numberOfJoints-1] = (GRAVITY * JOINT_MASS * JOINT_LENGTH * cos(thetaArr[numberOfJoints-1]);
+    for (int i = numberOfJoints - 2; i >= 0; i--){
+      double mkSum = 0;
+      for (int k = 0; k < numberOfJoints; k++){
+        mkSum += JOINT_MASS * JOINT_LENGTH * cos(thetaArr[i]);
+      }
+      gis[i] = (gis[i + 1] + GRAVITY * (JOINT_MASS * JOINT_LENGTH * cos(thetaArr[i] + mkSum)) );
+    }
+
+    std::vector<double> multiplyVector;
+    multiplyVector.resize(numberOfJoints,0);
+    for (int i = 0; i < numberOfJoints; i++){
+      multiplyVector[i] = u[i] - littleH[i] - gis[i];
+    }
+
+    std::vector<double> angularAccelerations;
+    angularAccelerations.resize(numberOfJoints);
+    for (int i = 0; i < numberOfJoints; i++){
+      double thisAngular = 0;
+      for (int j = 0; j < numberOfJoints; j++){
+        for (int k = 0; k < numberOfJoints; k++){
+          thisAngular += Hinv[j][k] * multiplyVector[k];
+        }
+      }
+      angularAccelerations[i] = thisAngular;
+    }
+
+    qdot.resize(2 * numberOfJoints);
+    for (int i = 0; i < numberOfJoints; i++){
+      qdot[i * 2] = q[i * 2 + 1];
+      qdot[i * 2 + 1] = angularAccelerations[i];
     }
 }
 
