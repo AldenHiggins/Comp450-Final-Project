@@ -189,174 +189,174 @@ bool jointManipulatorStateValid(const control::SpaceInformation *si, const base:
 
 // Definition of the ODE for the car
 void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
-    // const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
-    // const double q0 = q[0];
-    // const double q1 = q[1];
-    // const double q2 = q[2];
-    // const double q3 = q[3];
-    // const double q4 = q[4];
-    // const double q5 = q[5];
+    const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
+    const double q0 = q[0];
+    const double q1 = q[1];
+    const double q2 = q[2];
+    const double q3 = q[3];
+    const double q4 = q[4];
+    const double q5 = q[5];
 
-    // /** Convert the theta values for the joints into x,y pairs for the ends **/
-    // std::vector<double> jointEndsX;
-    // std::vector<double> jointEndsY;
-    // // Theta accumulator
-    // std::vector<double> thetaArr;
-    // // Initialize the first element
-    // jointEndsX.push_back(JOINT_LENGTH * cos(q[0]));
-    // jointEndsY.push_back(JOINT_LENGTH * sin(q[0]));
+    /** Convert the theta values for the joints into x,y pairs for the ends **/
+    std::vector<double> jointEndsX;
+    std::vector<double> jointEndsY;
+    // Theta accumulator
+    std::vector<double> thetaArr;
+    // Initialize the first element
+    jointEndsX.push_back(JOINT_LENGTH * cos(q[0]));
+    jointEndsY.push_back(JOINT_LENGTH * sin(q[0]));
 
-    // double qSum = q[0];
-    // thetaArr.push_back(qSum);
-    // for (int i = 1; i < numberOfJoints; i++) {
-    //     qSum += q[i * 2];
-    //     thetaArr.push_back(qSum);
-    //     jointEndsX.push_back(jointEndsX[i-1] + JOINT_LENGTH * cos(qSum));
-    //     jointEndsY.push_back(jointEndsY[i-1] + JOINT_LENGTH * sin(qSum));
-    // }
+    double qSum = q[0];
+    thetaArr.push_back(qSum);
+    for (int i = 1; i < numberOfJoints; i++) {
+        qSum += q[i * 2];
+        thetaArr.push_back(qSum);
+        jointEndsX.push_back(jointEndsX[i-1] + JOINT_LENGTH * cos(qSum));
+        jointEndsY.push_back(jointEndsY[i-1] + JOINT_LENGTH * sin(qSum));
+    }
 
     
-    // /** Build the inertia matrix **/
-    // std::vector<std::vector<double> > inertiaMatrix;
-    // initializeNByNVector(&inertiaMatrix, numberOfJoints);
+    /** Build the inertia matrix **/
+    std::vector<std::vector<double> > inertiaMatrix;
+    initializeNByNVector(&inertiaMatrix, numberOfJoints);
 
-    // qSum = q[0];
-    // std::vector<std::vector<double> > jacobianLXArr;
-    // std::vector<std::vector<double> > jacobianLYArr;
-    // // Sum up all the Jacobians for each i into the inertia matrix
-    // for (int i = 0; i < numberOfJoints; i++) {
-    //     qSum += q[i * 2];
-    //     std::vector<double> jacobianLX;
-    //     std::vector<double> jacobianLY;
-    //     // Generate the Jacobian
-    //     for(int j = 0; j < numberOfJoints; j++) {
-    //         if (j <= i ) {
-    //             jacobianLX.push_back(-1 * jointEndsY[j] + jointEndsY[i] - JOINT_LENGTH/2 * sin(qSum));
-    //             jacobianLY.push_back(jointEndsX[j] + -1 * jointEndsX[i] + JOINT_LENGTH/2 * cos(qSum));
-    //         }
-    //         else {
-    //             jacobianLX.push_back(0);
-    //             jacobianLY.push_back(0);
-    //         }
-    //     }
-    //     jacobianLXArr.push_back(jacobianLX);
-    //     jacobianLYArr.push_back(jacobianLY);
+    qSum = q[0];
+    std::vector<std::vector<double> > jacobianLXArr;
+    std::vector<std::vector<double> > jacobianLYArr;
+    // Sum up all the Jacobians for each i into the inertia matrix
+    for (int i = 0; i < numberOfJoints; i++) {
+        qSum += q[i * 2];
+        std::vector<double> jacobianLX;
+        std::vector<double> jacobianLY;
+        // Generate the Jacobian
+        for(int j = 0; j < numberOfJoints; j++) {
+            if (j <= i ) {
+                jacobianLX.push_back(-1 * jointEndsY[j] + jointEndsY[i] - JOINT_LENGTH/2 * sin(qSum));
+                jacobianLY.push_back(jointEndsX[j] + -1 * jointEndsX[i] + JOINT_LENGTH/2 * cos(qSum));
+            }
+            else {
+                jacobianLX.push_back(0);
+                jacobianLY.push_back(0);
+            }
+        }
+        jacobianLXArr.push_back(jacobianLX);
+        jacobianLYArr.push_back(jacobianLY);
 
-    //     // Multiply the Jacobian by its transpose and add in the moment of inertia if r/c < i then
-    //     // throw those values into the accumulating inertiaMatrix
-    //     for (int r = 0; r < numberOfJoints; r++) {
-    //         for (int c = 0; c < numberOfJoints; c++) {
-    //             inertiaMatrix[r][c] = JOINT_MASS * JOINT_MASS * (jacobianLX[r] * jacobianLX[c] + jacobianLY[r] * jacobianLY[c]);    
-    //             if (r <= i && c <= i) {
-    //                 // Add in moment of inertia
-    //                 inertiaMatrix[r][c] += ((JOINT_MASS * JOINT_LENGTH * JOINT_LENGTH)/12.);
-    //             }            
-    //         }
-    //     }
-    // }
-    // // Invert the inertia matrix
-    // double** Hinv = (double**)malloc(numberOfJoints * sizeof (double*));
-    // for (int z = 0; z < numberOfJoints; z++) {
-    //   Hinv[z] = (double*) malloc(numberOfJoints * sizeof(double));
-    // }
-    // Inverse(setupHMM(inertiaMatrix,numberOfJoints,numberOfJoints), Hinv, numberOfJoints);
+        // Multiply the Jacobian by its transpose and add in the moment of inertia if r/c < i then
+        // throw those values into the accumulating inertiaMatrix
+        for (int r = 0; r < numberOfJoints; r++) {
+            for (int c = 0; c < numberOfJoints; c++) {
+                inertiaMatrix[r][c] = JOINT_MASS * JOINT_MASS * (jacobianLX[r] * jacobianLX[c] + jacobianLY[r] * jacobianLY[c]);    
+                if (r <= i && c <= i) {
+                    // Add in moment of inertia
+                    inertiaMatrix[r][c] += ((JOINT_MASS * JOINT_LENGTH * JOINT_LENGTH)/12.);
+                }            
+            }
+        }
+    }
+    // Invert the inertia matrix
+    double** Hinv = (double**)malloc(numberOfJoints * sizeof (double*));
+    for (int z = 0; z < numberOfJoints; z++) {
+      Hinv[z] = (double*) malloc(numberOfJoints * sizeof(double));
+    }
+    Inverse(setupHMM(inertiaMatrix,numberOfJoints,numberOfJoints), Hinv, numberOfJoints);
 
 
-    // /** Generate the partial derivatives of the Inertia Matrix for the Coriolis vector calculation  **/
-    // // Will contain the partial derivatives
-    // std::vector<std::vector<std::vector< double > > > vectorOfMatricies;
+    /** Generate the partial derivatives of the Inertia Matrix for the Coriolis vector calculation  **/
+    // Will contain the partial derivatives
+    std::vector<std::vector<std::vector< double > > > vectorOfMatricies;
 
-    // for (int i = 0; i < numberOfJoints; i++) {
-    //   // The matrix for this partial derivative
-    //   std::vector<std::vector<double> > resultMatrix;
-    //   initializeNByNVector(&resultMatrix, numberOfJoints);
+    for (int i = 0; i < numberOfJoints; i++) {
+      // The matrix for this partial derivative
+      std::vector<std::vector<double> > resultMatrix;
+      initializeNByNVector(&resultMatrix, numberOfJoints);
 
-    //   for (int j = 0; j < numberOfJoints; j++) {
-    //     // Generate the partial jacobian derivative for this joint
-    //     std::vector<double> partialJX;
-    //     std::vector<double> partialJY;
-    //     double thetaSum = q[0];
-    //     for (int k = 0; k < numberOfJoints; k++) {
-    //         int r = std::max(j, k);
-    //         if (j <=i && k <= i) {
-    //           partialJX.push_back(-1 * jointEndsX[r] + jointEndsX[i] - DISTANCE_FROM_CENTER * cos(thetaArr[i]));
-    //           partialJY.push_back(-1 * jointEndsY[r] + jointEndsY[i] - DISTANCE_FROM_CENTER * sin(thetaArr[i]));
-    //         }
-    //         else {
-    //           partialJX.push_back(0);
-    //           partialJY.push_back(0);
-    //         }
-    //     }
-    //     // Multiply the partial derivative by the jacobian transpose
-    //     // TODO: I thought we multiplied by the transpose and not by the derivative transpose....
-    //     std::vector<std::vector<double> > multipliedMatrix;
-    //     initializeNByNVector(&multipliedMatrix, numberOfJoints);
-    //     for (int r = 0; r < numberOfJoints; r++) {
-    //         for (int c = 0; c < numberOfJoints; c++) {
-    //             multipliedMatrix[r][c] = JOINT_MASS * (partialJX[r] * partialJX[c] + partialJY[r] * partialJY[c]);
-    //         }
-    //     }
-    //     // Generate the transpose of the result and add it in, then increment the result matrix
-    //     double **matrixTranspose = setupHMM(multipliedMatrix, numberOfJoints, numberOfJoints);
-    //     Transpose(matrixTranspose, numberOfJoints);
-    //     for (int x = 0; x < numberOfJoints; x++) {
-    //       for (int y = 0; y < numberOfJoints; y++) {
-    //         multipliedMatrix[x][y] += matrixTranspose[x][y];
-    //         resultMatrix[x][y] += multipliedMatrix[x][y];
-    //       }
-    //     }
-    //   }
+      for (int j = 0; j < numberOfJoints; j++) {
+        // Generate the partial jacobian derivative for this joint
+        std::vector<double> partialJX;
+        std::vector<double> partialJY;
+        double thetaSum = q[0];
+        for (int k = 0; k < numberOfJoints; k++) {
+            int r = std::max(j, k);
+            if (j <=i && k <= i) {
+              partialJX.push_back(-1 * jointEndsX[r] + jointEndsX[i] - DISTANCE_FROM_CENTER * cos(thetaArr[i]));
+              partialJY.push_back(-1 * jointEndsY[r] + jointEndsY[i] - DISTANCE_FROM_CENTER * sin(thetaArr[i]));
+            }
+            else {
+              partialJX.push_back(0);
+              partialJY.push_back(0);
+            }
+        }
+        // Multiply the partial derivative by the jacobian transpose
+        // TODO: I thought we multiplied by the transpose and not by the derivative transpose....
+        std::vector<std::vector<double> > multipliedMatrix;
+        initializeNByNVector(&multipliedMatrix, numberOfJoints);
+        for (int r = 0; r < numberOfJoints; r++) {
+            for (int c = 0; c < numberOfJoints; c++) {
+                multipliedMatrix[r][c] = JOINT_MASS * (partialJX[r] * partialJX[c] + partialJY[r] * partialJY[c]);
+            }
+        }
+        // Generate the transpose of the result and add it in, then increment the result matrix
+        double **matrixTranspose = setupHMM(multipliedMatrix, numberOfJoints, numberOfJoints);
+        Transpose(matrixTranspose, numberOfJoints);
+        for (int x = 0; x < numberOfJoints; x++) {
+          for (int y = 0; y < numberOfJoints; y++) {
+            multipliedMatrix[x][y] += matrixTranspose[x][y];
+            resultMatrix[x][y] += multipliedMatrix[x][y];
+          }
+        }
+      }
 
-    //   vectorOfMatricies.push_back(resultMatrix);
-    // }
-    // std::vector<double> littleH;
-    // for (int i = 0; i < numberOfJoints; i++) {
-    //   double littleHI = 0;
-    //   for (int j = 0; j < numberOfJoints; j++) {
-    //     for (int k = 0; k < numberOfJoints; k++) {
-    //       double hijk = vectorOfMatricies[k][i][j] - 0.5  * vectorOfMatricies[i][j][k];
-    //       double qDotj = q[j * 2 + 1];
-    //       double qDoti = q[i * 2 + 1];
-    //       littleHI += hijk * qDotj * qDoti;
-    //     }
-    //   }
-    //   littleH.push_back(littleHI);
-    // }
+      vectorOfMatricies.push_back(resultMatrix);
+    }
+    std::vector<double> littleH;
+    for (int i = 0; i < numberOfJoints; i++) {
+      double littleHI = 0;
+      for (int j = 0; j < numberOfJoints; j++) {
+        for (int k = 0; k < numberOfJoints; k++) {
+          double hijk = vectorOfMatricies[k][i][j] - 0.5  * vectorOfMatricies[i][j][k];
+          double qDotj = q[j * 2 + 1];
+          double qDoti = q[i * 2 + 1];
+          littleHI += hijk * qDotj * qDoti;
+        }
+      }
+      littleH.push_back(littleHI);
+    }
 
-    // std::vector<double> gis;
-    // gis.resize(numberOfJoints, 0);
-    // gis[numberOfJoints-1] = (GRAVITY * JOINT_MASS * JOINT_LENGTH * cos(thetaArr[numberOfJoints-1]));
-    // for (int i = numberOfJoints - 2; i >= 0; i--){
-    //   double mkSum = 0;
-    //   for (int k = 0; k < numberOfJoints; k++){
-    //     mkSum += JOINT_MASS * JOINT_LENGTH * cos(thetaArr[i]);
-    //   }
-    //   gis[i] = (gis[i + 1] + GRAVITY * (JOINT_MASS * JOINT_LENGTH * cos(thetaArr[i] + mkSum)) );
-    // }
+    std::vector<double> gis;
+    gis.resize(numberOfJoints, 0);
+    gis[numberOfJoints-1] = (GRAVITY * JOINT_MASS * JOINT_LENGTH * cos(thetaArr[numberOfJoints-1]));
+    for (int i = numberOfJoints - 2; i >= 0; i--){
+      double mkSum = 0;
+      for (int k = 0; k < numberOfJoints; k++){
+        mkSum += JOINT_MASS * JOINT_LENGTH * cos(thetaArr[i]);
+      }
+      gis[i] = (gis[i + 1] + GRAVITY * (JOINT_MASS * JOINT_LENGTH * cos(thetaArr[i] + mkSum)) );
+    }
 
-    // std::vector<double> multiplyVector;
-    // multiplyVector.resize(numberOfJoints,0);
-    // for (int i = 0; i < numberOfJoints; i++){
-    //   multiplyVector[i] = u[i] - littleH[i] - gis[i];
-    // }
+    std::vector<double> multiplyVector;
+    multiplyVector.resize(numberOfJoints,0);
+    for (int i = 0; i < numberOfJoints; i++){
+      multiplyVector[i] = u[i] - littleH[i] - gis[i];
+    }
 
-    // std::vector<double> angularAccelerations;
-    // angularAccelerations.resize(numberOfJoints);
-    // for (int i = 0; i < numberOfJoints; i++){
-    //   double thisAngular = 0;
-    //   for (int j = 0; j < numberOfJoints; j++){
-    //     for (int k = 0; k < numberOfJoints; k++){
-    //       thisAngular += Hinv[j][k] * multiplyVector[k];
-    //     }
-    //   }
-    //   angularAccelerations[i] = thisAngular;
-    // }
+    std::vector<double> angularAccelerations;
+    angularAccelerations.resize(numberOfJoints);
+    for (int i = 0; i < numberOfJoints; i++){
+      double thisAngular = 0;
+      for (int j = 0; j < numberOfJoints; j++){
+        for (int k = 0; k < numberOfJoints; k++){
+          thisAngular += Hinv[j][k] * multiplyVector[k];
+        }
+      }
+      angularAccelerations[i] = thisAngular;
+    }
 
-    // qdot.resize(2 * numberOfJoints);
-    // for (int i = 0; i < numberOfJoints; i++){
-    //   qdot[i * 2] = q[i * 2 + 1];
-    //   qdot[i * 2 + 1] = angularAccelerations[i];
-    // }
+    qdot.resize(2 * numberOfJoints);
+    for (int i = 0; i < numberOfJoints; i++){
+      qdot[i * 2] = q[i * 2 + 1];
+      qdot[i * 2 + 1] = angularAccelerations[i];
+    }
 }
 
 
@@ -417,7 +417,7 @@ void carPlan(){
     // Define start and goal states
     base::ScopedState<> start(stateSpace);
     base::ScopedState<> goal(stateSpace);   
-    for (int i = 0; i < numberOfJoints; i++){
+    for (int i = 0; i < 2*numberOfJoints; i++){
         start[i] = 0;
         if (i % 2 == 0){
             goal[i] = i;
@@ -426,6 +426,9 @@ void carPlan(){
             goal[i] = 0;
         }
     }
+
+    std::cout << start << std::endl;
+    std::cout << goal << std::endl;
 
     // Enables KPIECE planner
     // stateSpace->registerDefaultProjection(base::ProjectionEvaluatorPtr(new CarProjection(stateSpace)));
@@ -453,7 +456,7 @@ void carPlan(){
     // Change planner variables
     setup.getSpaceInformation()->setPropagationStepSize(.1);
     setup.getSpaceInformation()->setMinMaxControlDuration(1, 3); // 2 3 default
-
+    //setup.setPlanner(base::PlannerPtr(new control::RRT(setup.getSpaceInformation())));
     setup.setStartAndGoalStates(start, goal, 0.05);
     setup.setup();
     // Give the problem 30 seconds to solve
