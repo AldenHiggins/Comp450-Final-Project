@@ -313,7 +313,7 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         initializeNByNVector(&multipliedMatrix, numberOfJoints);
         for (int r = 0; r < numberOfJoints; r++) {
             for (int c = 0; c < numberOfJoints; c++) {
-                multipliedMatrix[r][c] = JOINT_MASS * (partialJX[r] * partialJX[c] + partialJY[r] * partialJY[c]);
+                multipliedMatrix[r][c] = JOINT_MASS * (JacobzianLXArr[i][r] * partialJX[c] + JacobianLYArr[i][r] * partialJY[c]);
             }
         }
         // Generate the transpose of the result and add it in, then increment the result matrix
