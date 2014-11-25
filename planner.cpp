@@ -30,9 +30,12 @@
 
 #define JOINT_LENGTH 1
 #define JOINT_MASS 1
+#define JOINT_CENTER .5
 
 #define DISTANCE_FROM_CENTER 1
 #define GRAVITY 9.81
+
+#define CONTROLLIMIT 4
 
 using namespace ompl;
 
@@ -200,14 +203,15 @@ void printOutPointerMatrix(double **matrix, int rows, int columns) {
 // Definition of the ODE for the car
 void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
     const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
-    const double q0 = q[0];
-    const double q1 = q[1];
-    const double q2 = q[2];
-    const double q3 = q[3];
-    const double q4 = q[4];
-    const double q5 = q[5];
+    // Something is wrong with u!!
+    std::cout << *u << std::endl;
+
 
     /** Convert the theta values for the joints into x,y pairs for the ends **/
+
+    // We need to check the order of this.  Ref 1 does not make sense to me!  End effector is [x1,y1] ??!?!?!?!?!
+
+
     std::vector<double> jointEndsX;
     std::vector<double> jointEndsY;
     // Theta accumulator
@@ -226,7 +230,7 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     }
 
     
-    /** Build the inertia matrix **/
+    /** Build the inertia matrix **/   // I believe interia matrix is made correctly
     std::vector<std::vector<double> > inertiaMatrix;
     initializeNByNVector(&inertiaMatrix, numberOfJoints);
 
@@ -234,6 +238,7 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     std::vector<std::vector<double> > jacobianLXArr;
     std::vector<std::vector<double> > jacobianLYArr;
     // Sum up all the Jacobians for each i into the inertia matrix
+   
     for (int i = 0; i < numberOfJoints; i++) {
         qSum += q[i * 2];
         std::vector<double> jacobianLX;
@@ -241,8 +246,8 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         // Generate the Jacobian
         for(int j = 0; j < numberOfJoints; j++) {
             if (j <= i ) {
-                jacobianLX.push_back(-1 * jointEndsY[j] + jointEndsY[i] - JOINT_LENGTH/2 * sin(qSum));
-                jacobianLY.push_back(jointEndsX[j] + -1 * jointEndsX[i] + JOINT_LENGTH/2 * cos(qSum));
+                jacobianLX.push_back(-1 * jointEndsY[j] + jointEndsY[i] - JOINT_CENTER * sin(thetaArr[i]));
+                jacobianLY.push_back(jointEndsX[j] + -1 * jointEndsX[i] + JOINT_CENTER * cos(thetaArr[i]));  // Fixed error, had qsum instead of thetaArr!
             }
             else {
                 jacobianLX.push_back(0);
@@ -256,7 +261,7 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         // throw those values into the accumulating inertiaMatrix
         for (int r = 0; r < numberOfJoints; r++) {
             for (int c = 0; c < numberOfJoints; c++) {
-                inertiaMatrix[r][c] = JOINT_MASS * JOINT_MASS * (jacobianLX[r] * jacobianLX[c] + jacobianLY[r] * jacobianLY[c]);    
+                inertiaMatrix[r][c] += JOINT_MASS * (jacobianLX[r] * jacobianLX[c] + jacobianLY[r] * jacobianLY[c]);  // Big mistake!! We were not doing += !!!
                 if (r <= i && c <= i) {
                     // Add in moment of inertia
                     inertiaMatrix[r][c] += ((JOINT_MASS * JOINT_LENGTH * JOINT_LENGTH)/12.);
@@ -265,6 +270,10 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         }
     }
     // Invert the inertia matrix
+
+    // does this for sure work?  I am less familiar with malloc, but it seems solid.  We are trusting
+    // other people's code here with the Inverse.  Assuming theirs is right, I think this is correct code.
+
     double** Hinv = (double**)malloc(numberOfJoints * sizeof (double*));
     for (int z = 0; z < numberOfJoints; z++) {
       Hinv[z] = (double*) malloc(numberOfJoints * sizeof(double));
@@ -274,23 +283,23 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
 
     /** Generate the partial derivatives of the Inertia Matrix for the Coriolis vector calculation  **/
     // Will contain the partial derivatives
-    std::vector<std::vector<std::vector< double > > > vectorOfMatricies;
+    std::vector<std::vector<std::vector< double > > > partialH;
 
     for (int i = 0; i < numberOfJoints; i++) {
       // The matrix for this partial derivative
-      std::vector<std::vector<double> > resultMatrix;
-      initializeNByNVector(&resultMatrix, numberOfJoints);
+      std::vector<std::vector<double> > partialHi;
+      initializeNByNVector(&partialHi, numberOfJoints);
 
       for (int j = 0; j < numberOfJoints; j++) {
         // Generate the partial jacobian derivative for this joint
         std::vector<double> partialJX;
         std::vector<double> partialJY;
-        double thetaSum = q[0];
+
         for (int k = 0; k < numberOfJoints; k++) {
             int r = std::max(j, k);
             if (j <=i && k <= i) {
-              partialJX.push_back(-1 * jointEndsX[r] + jointEndsX[i] - DISTANCE_FROM_CENTER * cos(thetaArr[i]));
-              partialJY.push_back(-1 * jointEndsY[r] + jointEndsY[i] - DISTANCE_FROM_CENTER * sin(thetaArr[i]));
+              partialJX.push_back(-1 * jointEndsX[r] + jointEndsX[i] - JOINT_CENTER * cos(thetaArr[i]));
+              partialJY.push_back(-1 * jointEndsY[r] + jointEndsY[i] - JOINT_CENTER * sin(thetaArr[i])); 
             }
             else {
               partialJX.push_back(0);
@@ -312,37 +321,45 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         for (int x = 0; x < numberOfJoints; x++) {
           for (int y = 0; y < numberOfJoints; y++) {
             multipliedMatrix[x][y] += matrixTranspose[x][y];
-            resultMatrix[x][y] += multipliedMatrix[x][y];
+            partialHi[x][y] += multipliedMatrix[x][y];
           }
         }
       }
 
-      vectorOfMatricies.push_back(resultMatrix);
+      partialH.push_back(partialHi);
     }
+
+
+    // I think this is right now
+
     std::vector<double> littleH;
     for (int i = 0; i < numberOfJoints; i++) {
       double littleHI = 0;
       for (int j = 0; j < numberOfJoints; j++) {
         for (int k = 0; k < numberOfJoints; k++) {
-          double hijk = vectorOfMatricies[k][i][j] - 0.5  * vectorOfMatricies[i][j][k];
+          double hijk = partialH[k][i][j] - 0.5  * partialH[i][j][k];
           double qDotj = q[j * 2 + 1];
-          double qDoti = q[i * 2 + 1];
-          littleHI += hijk * qDotj * qDoti;
+          double qDotk = q[k * 2 + 1];   // This used to be i instead of k.  Big error!
+          littleHI += hijk * qDotj * qDotk;
         }
       }
       littleH.push_back(littleHI);
     }
 
+    // fixed this, there were a lot of errors.  Close to positive it is correct now.
+
     std::vector<double> gis;
     gis.resize(numberOfJoints, 0);
-    gis[numberOfJoints-1] = (GRAVITY * JOINT_MASS * JOINT_LENGTH * cos(thetaArr[numberOfJoints-1]));
+    gis[numberOfJoints-1] = (GRAVITY * JOINT_MASS * JOINT_CENTER * cos(thetaArr[numberOfJoints-1]));
     for (int i = numberOfJoints - 2; i >= 0; i--){
       double mkSum = 0;
-      for (int k = 0; k < numberOfJoints; k++){
+      for (int k = i; k < numberOfJoints; k++){
         mkSum += JOINT_MASS * JOINT_LENGTH * cos(thetaArr[i]);
       }
-      gis[i] = (gis[i + 1] + GRAVITY * (JOINT_MASS * JOINT_LENGTH * cos(thetaArr[i] + mkSum)) );
+      gis[i] = gis[i + 1] + GRAVITY * (JOINT_MASS * JOINT_CENTER * cos(thetaArr[i]) + mkSum);
     }
+
+    // I think this is right
 
     std::vector<double> multiplyVector;
     multiplyVector.resize(numberOfJoints,0);
@@ -353,7 +370,6 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     // Print out Hinv
     std::cout << "Printing Hinv:" << std::endl;
     printOutPointerMatrix(Hinv,numberOfJoints,numberOfJoints);
-
 
     std::vector<double> angularAccelerations;
     angularAccelerations.resize(numberOfJoints);
@@ -366,6 +382,8 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
       }
       angularAccelerations[i] = thisAngular;
     }
+
+    // I think this is right too
 
     qdot.resize(2 * numberOfJoints);
     for (int i = 0; i < numberOfJoints; i++){
@@ -403,10 +421,13 @@ void jointManipulatorPostIntegration(const base::State* state, const control::Co
         // std::cout << "Real Vec: " << (state->as<base::CompoundStateSpace::StateType>()
         //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
 
-        const base::CompoundState *cstate = static_cast<const base::CompoundState *>(result);
+        // const base::CompoundState *cstate = static_cast<const base::CompoundState *>(result);
 
-        SO2.enforceBounds(cstate->components[i * 2]->as<base::SO2StateSpace::StateType>());
+        // SO2.enforceBounds(cstate->components[i * 2]->as<base::SO2StateSpace::StateType>());
         // SO2.enforceBounds(result->as<base::CompoundStateSpace::StateType>()->as<base::SO2StateSpace::StateType>(i * 2));
+
+        const base::CompoundState *cstate = static_cast<const base::CompoundState *>(result);
+        SO2.enforceBounds(cstate->components[i*2]->as<base::SO2StateSpace::StateType>());
     }
 }
 
@@ -439,10 +460,7 @@ void carPlan(){
     base::ScopedState<> goal(stateSpace);   
     for (int i = 0; i < 2*numberOfJoints; i++){
         start[i] = 0;
-        if (i == 0){
-          goal[i] = 1;
-        }
-        else if (i % 2 == 0){
+        if (i % 2 == 0){
             goal[i] = 1;
         }
         else{
@@ -461,8 +479,8 @@ void carPlan(){
     // Set bounds of control space
     base::RealVectorBounds cbounds(numberOfJoints);
     for(int i = 0; i < numberOfJoints; i++){
-        cbounds.setLow(i,-4);
-        cbounds.setHigh(i,4);
+        cbounds.setLow(i,-CONTROLLIMIT);
+        cbounds.setHigh(i,CONTROLLIMIT);
     }
     cmanifold->as<control::RealVectorControlSpace>()->setBounds(cbounds);
 
@@ -483,7 +501,7 @@ void carPlan(){
     setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     setup.setup();
     // Give the problem 30 seconds to solve
-    if(setup.solve(5))
+    if(setup.solve(3))
     {
         /// print the path to screen
         std::cout << "Found solution:" << std::endl;
@@ -512,7 +530,7 @@ void carPlan(){
 }
 
 int main(){
-    numberOfJoints = 1;
+    numberOfJoints = 2;
     // Initialize car environment
     // carEnvironment = new Environment();
 
