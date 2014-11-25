@@ -35,7 +35,7 @@
 #define DISTANCE_FROM_CENTER 1
 #define GRAVITY 9.81
 
-#define CONTROLLIMIT 20
+#define CONTROLLIMIT 100
 
 using namespace ompl;
 
@@ -206,8 +206,7 @@ void printOutPointerMatrix(double **matrix, int rows, int columns) {
 // Definition of the ODE for the car
 void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
     double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
-    u[0] = 0;
-    u[1] = 0;
+
     // u[0] = 20;
     // Something is wrong with u!!
     // std::cout << "PRINTING Q============: " << std::endl;
@@ -472,10 +471,12 @@ void carPlan(){
             // goal[i] = 0;
         }
     }
-    goal[0] = -3.13;
+    goal[0] = -1.13;
     goal[1] = 0;
-    goal[2] = 1.27;
+    goal[2] = -1.57;
     goal[3] = 0;
+    goal[4] = 1.57;
+    goal[5] = 0;
 
     std::cout << "Start: " << start << std::endl;
     std::cout << "Goal: " << goal << std::endl;
@@ -501,7 +502,7 @@ void carPlan(){
     // Add post integration function
     // setup.setPlanner(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     // Change planner variables
-    setup.getSpaceInformation()->setPropagationStepSize(.1);
+    setup.getSpaceInformation()->setPropagationStepSize(.03);
     setup.getSpaceInformation()->setMinMaxControlDuration(1, 3); // 2 3 default
     //setup.setPlanner(base::PlannerPtr(new control::RRT(setup.getSpaceInformation())));
     setup.setStartAndGoalStates(start, goal, 0.05);
@@ -510,7 +511,7 @@ void carPlan(){
     setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     setup.setup();
     // Give the problem 30 seconds to solve
-    if(setup.solve(30))
+    if(setup.solve(1000))
     {
         /// print the path to screen
         std::cout << "Found solution:" << std::endl;
@@ -544,7 +545,7 @@ void carPlan(){
 }
 
 int main(){
-    numberOfJoints = 2;
+    numberOfJoints = 3;
     // Initialize car environment
     // carEnvironment = new Environment();
 
