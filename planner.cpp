@@ -187,6 +187,16 @@ bool jointManipulatorStateValid(const control::SpaceInformation *si, const base:
     return true;
 }
 
+
+void printOutPointerMatrix(double **matrix, int rows, int columns) {
+  for (int i = 0; i < rows; i++){
+    for (int j = 0; j < columns; j++){
+      std::cout << matrix[i][j] << ",";
+    }
+    std::cout << std::endl;
+  }
+}
+
 // Definition of the ODE for the car
 void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
     const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
@@ -340,6 +350,11 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
       multiplyVector[i] = u[i] - littleH[i] - gis[i];
     }
 
+    // Print out Hinv
+    std::cout << "Printing Hinv:" << std::endl;
+    printOutPointerMatrix(Hinv,numberOfJoints,numberOfJoints);
+
+
     std::vector<double> angularAccelerations;
     angularAccelerations.resize(numberOfJoints);
     for (int i = 0; i < numberOfJoints; i++){
@@ -361,28 +376,37 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
 
 
 // This is a callback method invoked after numerical integration for the car robot
-void jointManipulatorPostIntegration(const base::State* /*state*/, const control::Control* control, const double /*duration*/, base::State *result){
+void jointManipulatorPostIntegration(const base::State* state, const control::Control* control, const double /*duration*/, base::State *result){
     // Normalize orientation between 0 and 2*pi
     base::SO2StateSpace SO2;
     for (int i = 0; i < numberOfJoints; i++){
-        // std::cout << "=============RESULT================" << std::endl;
-        // std::cout << "SO2: " << (result->as<base::CompoundStateSpace::StateType>()
+        std::cout << "=============RESULT================" << std::endl;
+        const base::CompoundState *cstate1 = static_cast<const base::CompoundState *>(result);
+
+        std::cout << "SO2: " << cstate1->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
+        std::cout << "Real Vec: " << cstate1->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
+        // // // std::cout << "SO2: " << (result->as<base::CompoundStateSpace::StateType>()
+        // // //   ->as<base::SO2StateSpace::StateType>(i*2))->value << std::endl;
+        // // // std::cout << "Real Vec: " << (result->as<base::CompoundStateSpace::StateType>()
+        // // //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
+
+        std::cout << "=============CONTROL================" << std::endl;
+        std::cout << "Control: " << (control->as<control::RealVectorControlSpace::ControlType>())->values[i] << std::endl;
+
+        std::cout << "=============STATE================" << std::endl;
+        const base::CompoundState *cstate2 = static_cast<const base::CompoundState *>(state);
+
+        std::cout << "SO2: " << cstate2->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
+        std::cout << "Real Vec: " << cstate2->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
+        // std::cout << "SO2: " << (state->as<base::CompoundStateSpace::StateType>()
         //   ->as<base::SO2StateSpace::StateType>(i*2))->value << std::endl;
-        // std::cout << "Real Vec: " << (result->as<base::CompoundStateSpace::StateType>()
+        // std::cout << "Real Vec: " << (state->as<base::CompoundStateSpace::StateType>()
         //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
 
-        // std::cout << "=============CONTROL================" << std::endl;
-        // std::cout << "Control: " << (control->as<control::RealVectorControlSpace::ControlType>())->values[0] << std::endl;
-
-          // std::cout << "=============STATE================" << std::endl;
-          // std::cout << "SO2: " << (result->as<base::CompoundStateSpace::StateType>()
-          //   ->as<base::SO2StateSpace::StateType>(i*2))->value << std::endl;
-          // std::cout << "Real Vec: " << (result->as<base::CompoundStateSpace::StateType>()
-          //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
-
         const base::CompoundState *cstate = static_cast<const base::CompoundState *>(result);
-        SO2.enforceBounds(cstate->components[i*2]->as<base::SO2StateSpace::StateType>());
-        // SO2.enforceBounds(result->as<base::CompoundStateSpace::StateType>()->as<base::SO2StateSpace::StateType>(i*2));
+
+        SO2.enforceBounds(cstate->components[i * 2]->as<base::SO2StateSpace::StateType>());
+        // SO2.enforceBounds(result->as<base::CompoundStateSpace::StateType>()->as<base::SO2StateSpace::StateType>(i * 2));
     }
 }
 
@@ -410,25 +434,24 @@ void carPlan(){
         stateSpace = stateSpace + velocity;
     }
 
-    
-
-
-
     // Define start and goal states
     base::ScopedState<> start(stateSpace);
     base::ScopedState<> goal(stateSpace);   
     for (int i = 0; i < 2*numberOfJoints; i++){
         start[i] = 0;
-        if (i % 2 == 0){
-            goal[i] = i;
+        if (i == 0){
+          goal[i] = 1;
+        }
+        else if (i % 2 == 0){
+            goal[i] = 1;
         }
         else{
             goal[i] = 0;
         }
     }
 
-    std::cout << start << std::endl;
-    std::cout << goal << std::endl;
+    std::cout << "Start: " << start << std::endl;
+    std::cout << "Goal: " << goal << std::endl;
 
     // Enables KPIECE planner
     // stateSpace->registerDefaultProjection(base::ProjectionEvaluatorPtr(new CarProjection(stateSpace)));
@@ -446,21 +469,21 @@ void carPlan(){
     // Set up control space
     control::SimpleSetup setup(cmanifold);
 
-    // Set state validity checking for this space
-    setup.setStateValidityChecker(boost::bind(&jointManipulatorStateValid, setup.getSpaceInformation().get(), _1));
     // Add ODE solver for the space
     control::ODESolverPtr odeSolver(new control::ODEBasicSolver<> (setup.getSpaceInformation(), &jointManipulatorODE));
     // Add post integration function
     // setup.setPlanner(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
-    setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     // Change planner variables
     setup.getSpaceInformation()->setPropagationStepSize(.1);
     setup.getSpaceInformation()->setMinMaxControlDuration(1, 3); // 2 3 default
     //setup.setPlanner(base::PlannerPtr(new control::RRT(setup.getSpaceInformation())));
     setup.setStartAndGoalStates(start, goal, 0.05);
+    // Set state validity checking for this space
+    setup.setStateValidityChecker(boost::bind(&jointManipulatorStateValid, setup.getSpaceInformation().get(), _1));
+    setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     setup.setup();
     // Give the problem 30 seconds to solve
-    if(setup.solve(30))
+    if(setup.solve(5))
     {
         /// print the path to screen
         std::cout << "Found solution:" << std::endl;
@@ -489,7 +512,7 @@ void carPlan(){
 }
 
 int main(){
-    numberOfJoints = 3;
+    numberOfJoints = 1;
     // Initialize car environment
     // carEnvironment = new Environment();
 
