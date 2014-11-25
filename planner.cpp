@@ -190,36 +190,44 @@ bool jointManipulatorStateValid(const control::SpaceInformation *si, const base:
     return true;
 }
 
+
+void printOutPointerMatrix(double **matrix, int rows, int columns) {
+  for (int i = 0; i < rows; i++){
+    for (int j = 0; j < columns; j++){
+      std::cout << matrix[i][j] << ",";
+    }
+    std::cout << std::endl;
+  }
+}
+
 // Definition of the ODE for the car
 void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
-    
-            const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
-// Something is wrong with u!!
-
-            std::cout << *u << std::endl;
+    const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
+    // Something is wrong with u!!
+    std::cout << *u << std::endl;
 
 
     /** Convert the theta values for the joints into x,y pairs for the ends **/
 
-            // We need to check the order of this.  Ref 1 does not make sense to me!  End effector is [x1,y1] ??!?!?!?!?!
+    // We need to check the order of this.  Ref 1 does not make sense to me!  End effector is [x1,y1] ??!?!?!?!?!
 
 
-              std::vector<double> jointEndsX;
-              std::vector<double> jointEndsY;
-              // Theta accumulator
-              std::vector<double> thetaArr;
-              // Initialize the first element
-              jointEndsX.push_back(JOINT_LENGTH * cos(q[0]));
-              jointEndsY.push_back(JOINT_LENGTH * sin(q[0]));
+    std::vector<double> jointEndsX;
+    std::vector<double> jointEndsY;
+    // Theta accumulator
+    std::vector<double> thetaArr;
+    // Initialize the first element
+    jointEndsX.push_back(JOINT_LENGTH * cos(q[0]));
+    jointEndsY.push_back(JOINT_LENGTH * sin(q[0]));
 
-              double qSum = q[0];
-              thetaArr.push_back(qSum);
-              for (int i = 1; i < numberOfJoints; i++) {
-                  qSum += q[i * 2];
-                  thetaArr.push_back(qSum);
-                  jointEndsX.push_back(jointEndsX[i-1] + JOINT_LENGTH * cos(qSum));
-                  jointEndsY.push_back(jointEndsY[i-1] + JOINT_LENGTH * sin(qSum));
-              }
+    double qSum = q[0];
+    thetaArr.push_back(qSum);
+    for (int i = 1; i < numberOfJoints; i++) {
+        qSum += q[i * 2];
+        thetaArr.push_back(qSum);
+        jointEndsX.push_back(jointEndsX[i-1] + JOINT_LENGTH * cos(qSum));
+        jointEndsY.push_back(jointEndsY[i-1] + JOINT_LENGTH * sin(qSum));
+    }
 
     
     /** Build the inertia matrix **/   // I believe interia matrix is made correctly
@@ -359,7 +367,9 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
       multiplyVector[i] = u[i] - littleH[i] - gis[i];
     }
 
-    // I think this is right too
+    // Print out Hinv
+    std::cout << "Printing Hinv:" << std::endl;
+    printOutPointerMatrix(Hinv,numberOfJoints,numberOfJoints);
 
     std::vector<double> angularAccelerations;
     angularAccelerations.resize(numberOfJoints);
@@ -380,14 +390,41 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
       qdot[i * 2] = q[i * 2 + 1];
       qdot[i * 2 + 1] = angularAccelerations[i];
     }
- }
+}
 
 
 // This is a callback method invoked after numerical integration for the car robot
-void jointManipulatorPostIntegration(const base::State* /*state*/, const control::Control* control, const double /*duration*/, base::State *result){
+void jointManipulatorPostIntegration(const base::State* state, const control::Control* control, const double /*duration*/, base::State *result){
     // Normalize orientation between 0 and 2*pi
     base::SO2StateSpace SO2;
     for (int i = 0; i < numberOfJoints; i++){
+        std::cout << "=============RESULT================" << std::endl;
+        const base::CompoundState *cstate1 = static_cast<const base::CompoundState *>(result);
+
+        std::cout << "SO2: " << cstate1->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
+        std::cout << "Real Vec: " << cstate1->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
+        // // // std::cout << "SO2: " << (result->as<base::CompoundStateSpace::StateType>()
+        // // //   ->as<base::SO2StateSpace::StateType>(i*2))->value << std::endl;
+        // // // std::cout << "Real Vec: " << (result->as<base::CompoundStateSpace::StateType>()
+        // // //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
+
+        std::cout << "=============CONTROL================" << std::endl;
+        std::cout << "Control: " << (control->as<control::RealVectorControlSpace::ControlType>())->values[i] << std::endl;
+
+        std::cout << "=============STATE================" << std::endl;
+        const base::CompoundState *cstate2 = static_cast<const base::CompoundState *>(state);
+
+        std::cout << "SO2: " << cstate2->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
+        std::cout << "Real Vec: " << cstate2->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
+        // std::cout << "SO2: " << (state->as<base::CompoundStateSpace::StateType>()
+        //   ->as<base::SO2StateSpace::StateType>(i*2))->value << std::endl;
+        // std::cout << "Real Vec: " << (state->as<base::CompoundStateSpace::StateType>()
+        //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
+
+        // const base::CompoundState *cstate = static_cast<const base::CompoundState *>(result);
+
+        // SO2.enforceBounds(cstate->components[i * 2]->as<base::SO2StateSpace::StateType>());
+        // SO2.enforceBounds(result->as<base::CompoundStateSpace::StateType>()->as<base::SO2StateSpace::StateType>(i * 2));
 
         const base::CompoundState *cstate = static_cast<const base::CompoundState *>(result);
         SO2.enforceBounds(cstate->components[i*2]->as<base::SO2StateSpace::StateType>());
@@ -418,10 +455,6 @@ void carPlan(){
         stateSpace = stateSpace + velocity;
     }
 
-    
-
-
-
     // Define start and goal states
     base::ScopedState<> start(stateSpace);
     base::ScopedState<> goal(stateSpace);   
@@ -435,8 +468,8 @@ void carPlan(){
         }
     }
 
-    std::cout << start << std::endl;
-    std::cout << goal << std::endl;
+    std::cout << "Start: " << start << std::endl;
+    std::cout << "Goal: " << goal << std::endl;
 
     // Enables KPIECE planner
     // stateSpace->registerDefaultProjection(base::ProjectionEvaluatorPtr(new CarProjection(stateSpace)));
@@ -454,18 +487,18 @@ void carPlan(){
     // Set up control space
     control::SimpleSetup setup(cmanifold);
 
-    // Set state validity checking for this space
-    setup.setStateValidityChecker(boost::bind(&jointManipulatorStateValid, setup.getSpaceInformation().get(), _1));
     // Add ODE solver for the space
     control::ODESolverPtr odeSolver(new control::ODEBasicSolver<> (setup.getSpaceInformation(), &jointManipulatorODE));
     // Add post integration function
     // setup.setPlanner(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
-    setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     // Change planner variables
     setup.getSpaceInformation()->setPropagationStepSize(.1);
     setup.getSpaceInformation()->setMinMaxControlDuration(1, 3); // 2 3 default
     //setup.setPlanner(base::PlannerPtr(new control::RRT(setup.getSpaceInformation())));
     setup.setStartAndGoalStates(start, goal, 0.05);
+    // Set state validity checking for this space
+    setup.setStateValidityChecker(boost::bind(&jointManipulatorStateValid, setup.getSpaceInformation().get(), _1));
+    setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     setup.setup();
     // Give the problem 30 seconds to solve
     if(setup.solve(3))
