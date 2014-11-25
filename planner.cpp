@@ -35,7 +35,7 @@
 #define DISTANCE_FROM_CENTER 1
 #define GRAVITY 9.81
 
-#define CONTROLLIMIT 4
+#define CONTROLLIMIT 20
 
 using namespace ompl;
 
@@ -52,7 +52,7 @@ double Determinant(double **a,int n)
    double **m = NULL;
 
    if (n < 1) { /* Error */
-
+    std::cout << "This error happened" << std::endl;
    } else if (n == 1) { /* Shouldn't get used */
       det = a[0][0];
    } else if (n == 2) {
@@ -146,17 +146,20 @@ void Transpose(double **a,int n)
 */
 void Inverse(double **a, double **b, int n)
 {
-
-  double det = Determinant(a,n);
-  CoFactor(a,n,b);
-  for(int i = 0; i < n; i++){
-    for(int j = 0; j < n; j++){
-      b[i][j] = b[i][j]/det;
-    }
+  if (n == 1){
+    b[0][0] = 1/a[0][0];
   }
+  else{
+      double det = Determinant(a,n);
+      CoFactor(a,n,b);
+      for(int i = 0; i < n; i++){
+        for(int j = 0; j < n; j++){
+          b[i][j] = b[i][j]/det;
+        }
+      }
 
-  Transpose(b,n);
-
+      Transpose(b,n);
+  }
 }
 // Convert a vector of vectors into a double **
 double** setupHMM(std::vector<std::vector<double> > &vals, int N, int M)
@@ -202,11 +205,19 @@ void printOutPointerMatrix(double **matrix, int rows, int columns) {
 
 // Definition of the ODE for the car
 void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
-    const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
+    double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
+    u[0] = 0;
+    u[1] = 0;
+    // u[0] = 20;
     // Something is wrong with u!!
-    std::cout << "Entered ODE: " << std::endl;
-    std::cout << *u << std::endl;
-
+    // std::cout << "PRINTING Q============: " << std::endl;
+    // std::cout << "Q 0: " << q[0] << std::endl;
+    // std::cout << "Q 1: " << q[1] << std::endl;
+    // std::cout << "Q 2: " << q[2] << std::endl;
+    // std::cout << "Q 3: " << q[3] << std::endl;
+    // std::cout << "PRINTING U============: " << std::endl;
+    // std::cout << "U 0: " << u[0] << std::endl;
+    // std::cout << "U 1: " << u[1] << std::endl;
 
     /** Convert the theta values for the joints into x,y pairs for the ends **/
 
@@ -281,7 +292,9 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     }
     Inverse(setupHMM(inertiaMatrix,numberOfJoints,numberOfJoints), Hinv, numberOfJoints);
 
-
+    // std::cout << "HINV =======" << std::endl;
+    // std::cout << "00 : " << Hinv[0][0] << ", 01: " << Hinv[0][1] << std::endl;
+    // std::cout << "10 : " << Hinv[1][0] << ", 11: " << Hinv[1][1] << std::endl;
     /** Generate the partial derivatives of the Inertia Matrix for the Coriolis vector calculation  **/
     // Will contain the partial derivatives
     std::vector<std::vector<std::vector< double > > > partialH;
@@ -313,7 +326,7 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         initializeNByNVector(&multipliedMatrix, numberOfJoints);
         for (int r = 0; r < numberOfJoints; r++) {
             for (int c = 0; c < numberOfJoints; c++) {
-                multipliedMatrix[r][c] = JOINT_MASS * (JacobzianLXArr[i][r] * partialJX[c] + JacobianLYArr[i][r] * partialJY[c]);
+                multipliedMatrix[r][c] = JOINT_MASS * (jacobianLXArr[i][r] * partialJX[c] + jacobianLYArr[i][r] * partialJY[c]);
             }
         }
         // Generate the transpose of the result and add it in, then increment the result matrix
@@ -376,11 +389,11 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     angularAccelerations.resize(numberOfJoints);
     for (int i = 0; i < numberOfJoints; i++){
       double thisAngular = 0;
-      for (int j = 0; j < numberOfJoints; j++){
+      // for (int j = 0; j < numberOfJoints; j++){
         for (int k = 0; k < numberOfJoints; k++){
-          thisAngular += Hinv[j][k] * multiplyVector[k];
+          thisAngular += Hinv[i][k] * multiplyVector[k];
         }
-      }
+      // }
       angularAccelerations[i] = thisAngular;
     }
 
@@ -391,6 +404,12 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
       qdot[i * 2] = q[i * 2 + 1];
       qdot[i * 2 + 1] = angularAccelerations[i];
     }
+
+    // std::cout << "QDOTS =========" << std::endl;
+    // std::cout << "Qdot[0]: " << qdot[0] << std::endl;
+    // std::cout << "Qdot[1]: " << qdot[1] << std::endl;
+    // std::cout << "Qdot[2]: " << qdot[2] << std::endl;
+    // std::cout << "Qdot[3]: " << qdot[3] << std::endl;
 }
 
 
@@ -399,35 +418,18 @@ void jointManipulatorPostIntegration(const base::State* state, const control::Co
     // Normalize orientation between 0 and 2*pi
     base::SO2StateSpace SO2;
     for (int i = 0; i < numberOfJoints; i++){
-        std::cout << "=============STATE================" << std::endl;
-        const base::CompoundState *cstate2 = static_cast<const base::CompoundState *>(state);
-        std::cout << "SO2: " << cstate2->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
-        std::cout << "Real Vec: " << cstate2->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
+        // std::cout << "=============STATE================" << std::endl;
+        // const base::CompoundState *cstate2 = static_cast<const base::CompoundState *>(state);
+        // std::cout << "SO2: " << cstate2->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
+        // std::cout << "Real Vec: " << cstate2->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
 
-        std::cout << "=============CONTROL================" << std::endl;
-        std::cout << "Control: " << (control->as<control::RealVectorControlSpace::ControlType>())->values[i] << std::endl;
+        // std::cout << "=============CONTROL================" << std::endl;
+        // std::cout << "Control: " << (control->as<control::RealVectorControlSpace::ControlType>())->values[i] << std::endl;
 
-        std::cout << "=============RESULT================" << std::endl;
-        const base::CompoundState *cstate1 = static_cast<const base::CompoundState *>(result);
-        std::cout << "SO2: " << cstate1->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
-        std::cout << "Real Vec: " << cstate1->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
-        // // // std::cout << "SO2: " << (result->as<base::CompoundStateSpace::StateType>()
-        // // //   ->as<base::SO2StateSpace::StateType>(i*2))->value << std::endl;
-        // // // std::cout << "Real Vec: " << (result->as<base::CompoundStateSpace::StateType>()
-        // // //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
-
-        
-
-
-        // std::cout << "SO2: " << (state->as<base::CompoundStateSpace::StateType>()
-        //   ->as<base::SO2StateSpace::StateType>(i*2))->value << std::endl;
-        // std::cout << "Real Vec: " << (state->as<base::CompoundStateSpace::StateType>()
-        //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
-
-        // const base::CompoundState *cstate = static_cast<const base::CompoundState *>(result);
-
-        // SO2.enforceBounds(cstate->components[i * 2]->as<base::SO2StateSpace::StateType>());
-        // SO2.enforceBounds(result->as<base::CompoundStateSpace::StateType>()->as<base::SO2StateSpace::StateType>(i * 2));
+        // std::cout << "=============RESULT================" << std::endl;
+        // const base::CompoundState *cstate1 = static_cast<const base::CompoundState *>(result);
+        // std::cout << "SO2: " << cstate1->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
+        // std::cout << "Real Vec: " << cstate1->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
 
         const base::CompoundState *cstate = static_cast<const base::CompoundState *>(result);
         SO2.enforceBounds(cstate->components[i*2]->as<base::SO2StateSpace::StateType>());
@@ -464,12 +466,16 @@ void carPlan(){
     for (int i = 0; i < 2*numberOfJoints; i++){
         start[i] = 0;
         if (i % 2 == 0){
-            goal[i] = 1;
+            // goal[i] = -3.13;
         }
         else{
-            goal[i] = 0;
+            // goal[i] = 0;
         }
     }
+    goal[0] = -3.13;
+    goal[1] = 0;
+    goal[2] = 1.27;
+    goal[3] = 0;
 
     std::cout << "Start: " << start << std::endl;
     std::cout << "Goal: " << goal << std::endl;
@@ -504,13 +510,18 @@ void carPlan(){
     setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     setup.setup();
     // Give the problem 30 seconds to solve
-    if(setup.solve(3))
+    if(setup.solve(30))
     {
         /// print the path to screen
         std::cout << "Found solution:" << std::endl;
         setup.getSolutionPath().asGeometric().printAsMatrix(std::cout);
 
-        // std::ofstream fout("pathResults");
+        std::ofstream fout("printThis");
+        setup.getSolutionPath().asGeometric().printAsMatrix(fout);
+        // for (int i = 0; i < numberOfJoints; i++){
+        //   fout << setup.getSolutionPath().asGeometric().getState(i);
+
+        // }
         // // Start by writing out environment
         // // First write the axis dimensions
         // fout << carEnvironment->getStartAxis() << ":" << carEnvironment->getEndAxis() << std::endl;
@@ -533,7 +544,7 @@ void carPlan(){
 }
 
 int main(){
-    numberOfJoints = 1;
+    numberOfJoints = 2;
     // Initialize car environment
     // carEnvironment = new Environment();
 
