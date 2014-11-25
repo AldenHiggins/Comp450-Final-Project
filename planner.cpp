@@ -204,6 +204,7 @@ void printOutPointerMatrix(double **matrix, int rows, int columns) {
 void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
     const double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
     // Something is wrong with u!!
+    std::cout << "Entered ODE: " << std::endl;
     std::cout << *u << std::endl;
 
 
@@ -368,8 +369,8 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     }
 
     // Print out Hinv
-    std::cout << "Printing Hinv:" << std::endl;
-    printOutPointerMatrix(Hinv,numberOfJoints,numberOfJoints);
+    // std::cout << "Printing Hinv:" << std::endl;
+    // printOutPointerMatrix(Hinv,numberOfJoints,numberOfJoints);
 
     std::vector<double> angularAccelerations;
     angularAccelerations.resize(numberOfJoints);
@@ -398,9 +399,16 @@ void jointManipulatorPostIntegration(const base::State* state, const control::Co
     // Normalize orientation between 0 and 2*pi
     base::SO2StateSpace SO2;
     for (int i = 0; i < numberOfJoints; i++){
+        std::cout << "=============STATE================" << std::endl;
+        const base::CompoundState *cstate2 = static_cast<const base::CompoundState *>(state);
+        std::cout << "SO2: " << cstate2->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
+        std::cout << "Real Vec: " << cstate2->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
+
+        std::cout << "=============CONTROL================" << std::endl;
+        std::cout << "Control: " << (control->as<control::RealVectorControlSpace::ControlType>())->values[i] << std::endl;
+
         std::cout << "=============RESULT================" << std::endl;
         const base::CompoundState *cstate1 = static_cast<const base::CompoundState *>(result);
-
         std::cout << "SO2: " << cstate1->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
         std::cout << "Real Vec: " << cstate1->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
         // // // std::cout << "SO2: " << (result->as<base::CompoundStateSpace::StateType>()
@@ -408,14 +416,9 @@ void jointManipulatorPostIntegration(const base::State* state, const control::Co
         // // // std::cout << "Real Vec: " << (result->as<base::CompoundStateSpace::StateType>()
         // // //   ->as<base::RealVectorStateSpace::StateType>(i*2 + 1))->values[0] << std::endl;
 
-        std::cout << "=============CONTROL================" << std::endl;
-        std::cout << "Control: " << (control->as<control::RealVectorControlSpace::ControlType>())->values[i] << std::endl;
+        
 
-        std::cout << "=============STATE================" << std::endl;
-        const base::CompoundState *cstate2 = static_cast<const base::CompoundState *>(state);
 
-        std::cout << "SO2: " << cstate2->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
-        std::cout << "Real Vec: " << cstate2->components[i*2 + 1]->as<base::RealVectorStateSpace::StateType>()->values[0] << std::endl;
         // std::cout << "SO2: " << (state->as<base::CompoundStateSpace::StateType>()
         //   ->as<base::SO2StateSpace::StateType>(i*2))->value << std::endl;
         // std::cout << "Real Vec: " << (state->as<base::CompoundStateSpace::StateType>()
@@ -530,7 +533,7 @@ void carPlan(){
 }
 
 int main(){
-    numberOfJoints = 2;
+    numberOfJoints = 1;
     // Initialize car environment
     // carEnvironment = new Environment();
 
