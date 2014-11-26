@@ -39,6 +39,7 @@
 
 using namespace ompl;
 
+// The number of joints to plan for
 int numberOfJoints;
 
 
@@ -178,6 +179,7 @@ double** setupHMM(std::vector<std::vector<double> > &vals, int N, int M)
    return temp;
 }
 
+// Initialize a vector of a given size
 void initializeNByNVector(std::vector<std::vector<double> > *vecToInit, int n){
   for (int i = 0; i < n; i++){
         std::vector<double> row;
@@ -193,36 +195,11 @@ bool jointManipulatorStateValid(const control::SpaceInformation *si, const base:
     return true;
 }
 
-
-void printOutPointerMatrix(double **matrix, int rows, int columns) {
-  for (int i = 0; i < rows; i++){
-    for (int j = 0; j < columns; j++){
-      std::cout << matrix[i][j] << ",";
-    }
-    std::cout << std::endl;
-  }
-}
-
 // Definition of the ODE for the car
 void jointManipulatorODE(const control::ODESolver::StateType& q, const control::Control* control, control::ODESolver::StateType& qdot){
     double *u = control->as<control::RealVectorControlSpace::ControlType>()->values;
 
-    // u[0] = 20;
-    // Something is wrong with u!!
-    // std::cout << "PRINTING Q============: " << std::endl;
-    // std::cout << "Q 0: " << q[0] << std::endl;
-    // std::cout << "Q 1: " << q[1] << std::endl;
-    // std::cout << "Q 2: " << q[2] << std::endl;
-    // std::cout << "Q 3: " << q[3] << std::endl;
-    // std::cout << "PRINTING U============: " << std::endl;
-    // std::cout << "U 0: " << u[0] << std::endl;
-    // std::cout << "U 1: " << u[1] << std::endl;
-
-    /** Convert the theta values for the joints into x,y pairs for the ends **/
-
-    // We need to check the order of this.  Ref 1 does not make sense to me!  End effector is [x1,y1] ??!?!?!?!?!
-
-
+    // Convert the theta values for the joints into x,y pairs for the ends
     std::vector<double> jointEndsX;
     std::vector<double> jointEndsY;
     // Theta accumulator
@@ -230,7 +207,6 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     // Initialize the first element
     jointEndsX.push_back(JOINT_LENGTH * cos(q[0]));
     jointEndsY.push_back(JOINT_LENGTH * sin(q[0]));
-
     double qSum = q[0];
     thetaArr.push_back(qSum);
     for (int i = 1; i < numberOfJoints; i++) {
@@ -240,8 +216,7 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
         jointEndsY.push_back(jointEndsY[i-1] + JOINT_LENGTH * sin(qSum));
     }
 
-    
-    /** Build the inertia matrix **/   // I believe interia matrix is made correctly
+    // Build the inertia matrix 
     std::vector<std::vector<double> > inertiaMatrix;
     initializeNByNVector(&inertiaMatrix, numberOfJoints);
 
@@ -249,7 +224,6 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
     std::vector<std::vector<double> > jacobianLXArr;
     std::vector<std::vector<double> > jacobianLYArr;
     // Sum up all the Jacobians for each i into the inertia matrix
-   
     for (int i = 0; i < numberOfJoints; i++) {
         qSum += q[i * 2];
         std::vector<double> jacobianLX;
@@ -280,34 +254,24 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
             }
         }
     }
+
     // Invert the inertia matrix
-
-    // does this for sure work?  I am less familiar with malloc, but it seems solid.  We are trusting
-    // other people's code here with the Inverse.  Assuming theirs is right, I think this is correct code.
-
     double** Hinv = (double**)malloc(numberOfJoints * sizeof (double*));
     for (int z = 0; z < numberOfJoints; z++) {
       Hinv[z] = (double*) malloc(numberOfJoints * sizeof(double));
     }
     Inverse(setupHMM(inertiaMatrix,numberOfJoints,numberOfJoints), Hinv, numberOfJoints);
 
-    // std::cout << "HINV =======" << std::endl;
-    // std::cout << "00 : " << Hinv[0][0] << ", 01: " << Hinv[0][1] << std::endl;
-    // std::cout << "10 : " << Hinv[1][0] << ", 11: " << Hinv[1][1] << std::endl;
-    /** Generate the partial derivatives of the Inertia Matrix for the Coriolis vector calculation  **/
-    // Will contain the partial derivatives
+    // Generate the partial derivatives of the Inertia Matrix for the Coriolis vector calculation
     std::vector<std::vector<std::vector< double > > > partialH;
-
     for (int i = 0; i < numberOfJoints; i++) {
       // The matrix for this partial derivative
       std::vector<std::vector<double> > partialHi;
       initializeNByNVector(&partialHi, numberOfJoints);
-
       for (int j = 0; j < numberOfJoints; j++) {
         // Generate the partial jacobian derivative for this joint
         std::vector<double> partialJX;
         std::vector<double> partialJY;
-
         for (int k = 0; k < numberOfJoints; k++) {
             int r = std::max(j, k);
             if (j <=i && k <= i) {
@@ -320,7 +284,6 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
             }
         }
         // Multiply the partial derivative by the jacobian transpose
-        // TODO: I thought we multiplied by the transpose and not by the derivative transpose....
         std::vector<std::vector<double> > multipliedMatrix;
         initializeNByNVector(&multipliedMatrix, numberOfJoints);
         for (int r = 0; r < numberOfJoints; r++) {
@@ -338,13 +301,10 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
           }
         }
       }
-
       partialH.push_back(partialHi);
     }
 
-
-    // I think this is right now
-
+    // Generate the vector of little h's
     std::vector<double> littleH;
     for (int i = 0; i < numberOfJoints; i++) {
       double littleHI = 0;
@@ -359,8 +319,7 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
       littleH.push_back(littleHI);
     }
 
-    // fixed this, there were a lot of errors.  Close to positive it is correct now.
-
+    // Generate the gravity vector (V)
     std::vector<double> gis;
     gis.resize(numberOfJoints, 0);
     gis[numberOfJoints-1] = (GRAVITY * JOINT_MASS * JOINT_CENTER * cos(thetaArr[numberOfJoints-1]));
@@ -372,43 +331,31 @@ void jointManipulatorODE(const control::ODESolver::StateType& q, const control::
       gis[i] = gis[i + 1] + GRAVITY * (JOINT_MASS * JOINT_CENTER * cos(thetaArr[i]) + mkSum);
     }
 
-    // I think this is right
-
+    // Generate the right hand side of the differential equation from the project pdf
     std::vector<double> multiplyVector;
     multiplyVector.resize(numberOfJoints,0);
     for (int i = 0; i < numberOfJoints; i++){
       multiplyVector[i] = u[i] - littleH[i] - gis[i];
     }
 
-    // Print out Hinv
-    // std::cout << "Printing Hinv:" << std::endl;
-    // printOutPointerMatrix(Hinv,numberOfJoints,numberOfJoints);
-
+    // Generate the angular accelerations and complete the equation
+    // from the project pdf
     std::vector<double> angularAccelerations;
     angularAccelerations.resize(numberOfJoints);
     for (int i = 0; i < numberOfJoints; i++){
       double thisAngular = 0;
-      // for (int j = 0; j < numberOfJoints; j++){
-        for (int k = 0; k < numberOfJoints; k++){
-          thisAngular += Hinv[i][k] * multiplyVector[k];
-        }
-      // }
+      for (int k = 0; k < numberOfJoints; k++){
+        thisAngular += Hinv[i][k] * multiplyVector[k];
+      }
       angularAccelerations[i] = thisAngular;
     }
 
-    // I think this is right too
-
+    // Put in values to qdot
     qdot.resize(2 * numberOfJoints);
     for (int i = 0; i < numberOfJoints; i++){
       qdot[i * 2] = q[i * 2 + 1];
       qdot[i * 2 + 1] = angularAccelerations[i];
     }
-
-    // std::cout << "QDOTS =========" << std::endl;
-    // std::cout << "Qdot[0]: " << qdot[0] << std::endl;
-    // std::cout << "Qdot[1]: " << qdot[1] << std::endl;
-    // std::cout << "Qdot[2]: " << qdot[2] << std::endl;
-    // std::cout << "Qdot[3]: " << qdot[3] << std::endl;
 }
 
 
@@ -417,6 +364,7 @@ void jointManipulatorPostIntegration(const base::State* state, const control::Co
     // Normalize orientation between 0 and 2*pi
     base::SO2StateSpace SO2;
     for (int i = 0; i < numberOfJoints; i++){
+        // Debugging code to print out states
         // std::cout << "=============STATE================" << std::endl;
         // const base::CompoundState *cstate2 = static_cast<const base::CompoundState *>(state);
         // std::cout << "SO2: " << cstate2->components[i*2]->as<base::SO2StateSpace::StateType>()->value << std::endl;
@@ -435,26 +383,17 @@ void jointManipulatorPostIntegration(const base::State* state, const control::Co
     }
 }
 
-void carPlan(){
-    // Define the state space
-    // base::StateSpacePtr SE2(new base::SE2StateSpace());
-    // base::StateSpacePtr velocity(new base::RealVectorStateSpace(1));
-    base::StateSpacePtr stateSpace;// = SE2 + velocity;
-    
+void dynamicJointPlanner(){
+    // Generate a compound state space with alternating joint angles and angular velocities
+    base::StateSpacePtr stateSpace;
     for (int i = 0; i < numberOfJoints; i++){
         base::StateSpacePtr SO2(new base::SO2StateSpace());
-        // // Bind x/y bounds of the space
-        // base::RealVectorBounds bounds(2);
-        // bounds.setLow(-10);
-        // bounds.setHigh(10);
-        // SO2->as<base::SO2StateSpace>()->setBounds(bounds);
         base::StateSpacePtr velocity(new base::RealVectorStateSpace(1));
         // Bind velocity bounds
         base::RealVectorBounds velocityBound(1);
         velocityBound.setLow(-4);
         velocityBound.setHigh(4);
         velocity->as<base::RealVectorStateSpace>()->setBounds(velocityBound);
-        // base::StateSpacePtr temp = SO2 + velocity;
         stateSpace = stateSpace + SO2;
         stateSpace = stateSpace + velocity;
     }
@@ -464,28 +403,19 @@ void carPlan(){
     base::ScopedState<> goal(stateSpace);   
     for (int i = 0; i < 2*numberOfJoints; i++){
         start[i] = 0;
-        if (i % 2 == 0){
-            // goal[i] = -3.13;
-        }
-        else{
-            // goal[i] = 0;
-        }
     }
     goal[0] = -1.13;
     goal[1] = 0;
     goal[2] = -1.57;
     goal[3] = 0;
-    goal[4] = 1.57;
-    goal[5] = 0;
+    // goal[4] = 1.57;
+    // goal[5] = 0;
 
     std::cout << "Start: " << start << std::endl;
     std::cout << "Goal: " << goal << std::endl;
 
-    // Enables KPIECE planner
-    // stateSpace->registerDefaultProjection(base::ProjectionEvaluatorPtr(new CarProjection(stateSpace)));
     // Define control space
     control::ControlSpacePtr cmanifold(new control::RealVectorControlSpace(stateSpace, numberOfJoints));
-
     // Set bounds of control space
     base::RealVectorBounds cbounds(numberOfJoints);
     for(int i = 0; i < numberOfJoints; i++){
@@ -493,50 +423,28 @@ void carPlan(){
         cbounds.setHigh(i,CONTROLLIMIT);
     }
     cmanifold->as<control::RealVectorControlSpace>()->setBounds(cbounds);
-
     // Set up control space
     control::SimpleSetup setup(cmanifold);
-
     // Add ODE solver for the space
     control::ODESolverPtr odeSolver(new control::ODEBasicSolver<> (setup.getSpaceInformation(), &jointManipulatorODE));
-    // Add post integration function
-    // setup.setPlanner(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     // Change planner variables
     setup.getSpaceInformation()->setPropagationStepSize(.03);
     setup.getSpaceInformation()->setMinMaxControlDuration(1, 3); // 2 3 default
-    //setup.setPlanner(base::PlannerPtr(new control::RRT(setup.getSpaceInformation())));
     setup.setStartAndGoalStates(start, goal, 0.05);
     // Set state validity checking for this space
     setup.setStateValidityChecker(boost::bind(&jointManipulatorStateValid, setup.getSpaceInformation().get(), _1));
+    // Add post integration function
     setup.setStatePropagator(control::ODESolver::getStatePropagator(odeSolver, &jointManipulatorPostIntegration));
     setup.setup();
     // Give the problem 30 seconds to solve
-    if(setup.solve(1000))
+    if(setup.solve(30))
     {
-        /// print the path to screen
+        // Print the path to screen
         std::cout << "Found solution:" << std::endl;
         setup.getSolutionPath().asGeometric().printAsMatrix(std::cout);
-
+        // Print the output to printThis for the visualization code
         std::ofstream fout("printThis");
         setup.getSolutionPath().asGeometric().printAsMatrix(fout);
-        // for (int i = 0; i < numberOfJoints; i++){
-        //   fout << setup.getSolutionPath().asGeometric().getState(i);
-
-        // }
-        // // Start by writing out environment
-        // // First write the axis dimensions
-        // fout << carEnvironment->getStartAxis() << ":" << carEnvironment->getEndAxis() << std::endl;
-        // // Now write the objects
-        // std::vector<Rectangle> objects = carEnvironment->getObstacles();
-        // fout << objects.size() << std::endl;
-        // for (int objectIterator = 0; objectIterator < objects.size(); objectIterator++){
-        //     Rectangle object = objects[objectIterator];
-        //     fout << object.bottomLeftCorner.x << ":" << object.bottomLeftCorner.y << ":"
-        //      << object.bottomRightCorner.x << ":" << object.bottomRightCorner.y << ":"
-        //      << object.topLeftCorner.x << ":" << object.topLeftCorner.y << ":"
-        //      << object.topRightCorner.x << ":" << object.topRightCorner.y << std::endl;
-        // }
-        // setup.getSolutionPath().asGeometric().print(fout);
     }
     else
     {
@@ -545,20 +453,7 @@ void carPlan(){
 }
 
 int main(){
-    numberOfJoints = 3;
-    // Initialize car environment
-    // carEnvironment = new Environment();
-
-    // Choose type of scenario to plan for
-    // int env;
-    // do
-    // {
-    //     std::cout << "Plan for: "<< std::endl;
-    //     std::cout << " (1) Pendulum" << std::endl;
-    //     std::cout << " (2) Car Robot" << std::endl;
-
-    //     std::cin >> env;
-    // } while (env < 1 || env > 2);
-
-    carPlan();
+    // Set the number of joints to plan for in the system
+    numberOfJoints = 2;
+    dynamicJointPlanner();
 }
