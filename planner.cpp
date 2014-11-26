@@ -474,8 +474,8 @@ void carPlan(){
     }
     goal[0] = -3.13;
     goal[1] = 0;
-    goal[2] = 1.27;
-    goal[3] = 0;
+    // goal[2] = 1.27;
+    // goal[3] = 0;
 
     std::cout << "Start: " << start << std::endl;
     std::cout << "Goal: " << goal << std::endl;
@@ -544,7 +544,7 @@ void carPlan(){
 }
 
 int main(){
-    numberOfJoints = 2;
+    numberOfJoints = 1;
     // Initialize car environment
     // carEnvironment = new Environment();
 
